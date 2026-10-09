@@ -246,24 +246,39 @@ def _venv_selaras(akar: Path, req: Path) -> bool:
 def _jalankan(argv: list[str], *, cwd: Path) -> None:
     """Jalankan perintah penyiapan, dan bawa sebabnya bila gagal.
 
-    Keluaran pip dibiarkan mengalir ke layar supaya mahasiswa melihat
-    kemajuannya, tetapi baris terakhirnya juga ikut ke dalam pesan kesalahan --
-    di layar yang sudah penuh, justru baris itulah yang hilang.
+    Keluaran pip diteruskan ke layar **baris demi baris selagi berjalan** supaya
+    mahasiswa (dan panel "Lingkungan" aplikasi DSWorkbench, yang membaca pipa
+    ini) melihat kemajuannya; pemasangan beberapa menit tanpa satu baris pun
+    tampak seperti macet. Baris terakhirnya juga ikut ke dalam pesan kesalahan
+    -- di layar yang sudah penuh, justru baris itulah yang hilang.
     """
+    ekor: list[str] = []
     try:
-        hasil = subprocess.run(
-            argv, cwd=cwd, check=False,
+        proses = subprocess.Popen(
+            argv, cwd=cwd,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             text=True, errors="replace",
         )
     except OSError as exc:
         raise RuntimeError(f"perintah tidak dapat dijalankan: {exc}") from exc
-    if hasil.stdout:
-        print(hasil.stdout, end="")
-    if hasil.returncode != 0:
-        ekor = [b for b in (hasil.stdout or "").splitlines() if b.strip()][-6:]
+    try:
+        assert proses.stdout is not None
+        for baris in proses.stdout:
+            print(baris, end="", flush=True)
+            if baris.strip():
+                ekor.append(baris.rstrip("\r\n"))
+                del ekor[:-6]
+    except BaseException:
+        # Ctrl+C / pembatalan: jangan tinggalkan pip berjalan tanpa induk.
+        proses.kill()
+        raise
+    finally:
+        if proses.stdout is not None:
+            proses.stdout.close()
+        kode = proses.wait()
+    if kode != 0:
         raise RuntimeError(
-            f"perintah gagal (kode {hasil.returncode}): {' '.join(argv)}"
+            f"perintah gagal (kode {kode}): {' '.join(argv)}"
             + ("\n  " + "\n  ".join(ekor) if ekor else "")
         )
 

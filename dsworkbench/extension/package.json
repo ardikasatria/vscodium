@@ -44,7 +44,7 @@
           },
           "default": [],
           "scope": "machine",
-          "markdownDescription": "Perintah dasar Local Runner, mis. `[\"/jalur/python\", \"-m\", \"workbench_agent.cli\"]`. Ekstensi menambahkan `--url`, `--state-dir`, dan subperintahnya sendiri. Kosong = deteksi otomatis dari pemasangan aplikasi DSWorkbench."
+          "markdownDescription": "Perintah dasar Local Runner, mis. `[\"/jalur/python\", \"-m\", \"workbench_agent.cli\"]`. Ekstensi menambahkan `--url`, `--state-dir`, dan subperintahnya sendiri. Kosong = Local Runner bawaan aplikasi ini dengan lingkungan di folder runtime."
         },
         "dsworkbench.agent.stateDir": {
           "type": "string",
@@ -65,7 +65,7 @@
           "type": "boolean",
           "default": true,
           "scope": "machine",
-          "markdownDescription": "Jalankan salinan Local Runner yang dibawa ekstensi (`agent-payload/`) dengan lingkungan Python praktikum dari pemasangan aplikasi DSWorkbench yang sudah ada. Matikan untuk memakai Local Runner terpasang apa adanya."
+          "markdownDescription": "Jalankan salinan Local Runner yang dibawa aplikasi ini (`agent-payload/`) dengan lingkungan Python praktikum di folder runtime (dipasang lewat \"Siapkan lingkungan praktikum…\", atau warisan aplikasi DSWorkbench lama). Matikan hanya untuk memakai Local Runner dari pemasangan aplikasi lama apa adanya."
         }
       }
     },
@@ -216,6 +216,54 @@
         "title": "Pakai tema DSWorkbench",
         "category": "DSWorkbench",
         "icon": "$(color-mode)"
+      },
+      {
+        "command": "dsworkbench.getStarted",
+        "title": "Mulai dengan DSWorkbench",
+        "category": "DSWorkbench",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "dsworkbench.env.setup",
+        "title": "Siapkan lingkungan praktikum…",
+        "category": "DSWorkbench",
+        "icon": "$(package)"
+      },
+      {
+        "command": "dsworkbench.env.install",
+        "title": "Pasang lingkungan",
+        "category": "DSWorkbench",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "dsworkbench.env.update",
+        "title": "Perbarui lingkungan",
+        "category": "DSWorkbench",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "dsworkbench.env.check",
+        "title": "Periksa lingkungan (impor paket)",
+        "category": "DSWorkbench",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "dsworkbench.env.refresh",
+        "title": "Muat ulang Status",
+        "category": "DSWorkbench",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "dsworkbench.env.openFolder",
+        "title": "Buka folder runtime",
+        "category": "DSWorkbench",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "dsworkbench.env.showOutput",
+        "title": "Tampilkan log pemasangan lingkungan",
+        "category": "DSWorkbench",
+        "icon": "$(output)"
       }
     ],
     "viewsContainers": {
@@ -245,6 +293,12 @@
         {
           "id": "dsworkbench.tugas",
           "name": "Tugas & tenggat",
+          "icon": "media/dsworkbench.svg",
+          "contextualTitle": "DSWorkbench"
+        },
+        {
+          "id": "dsworkbench.status",
+          "name": "Status",
           "icon": "media/dsworkbench.svg",
           "contextualTitle": "DSWorkbench"
         },
@@ -366,6 +420,18 @@
         {
           "command": "dsworkbench.sql.runSelection",
           "when": "dsworkbench.masuk && editorIsOpen"
+        },
+        {
+          "command": "dsworkbench.env.install",
+          "when": "false"
+        },
+        {
+          "command": "dsworkbench.env.update",
+          "when": "false"
+        },
+        {
+          "command": "dsworkbench.env.refresh",
+          "when": "false"
         }
       ],
       "view/title": [
@@ -393,6 +459,31 @@
           "command": "dsworkbench.sql.serviceMenu",
           "when": "view == dsworkbench.basisData && dsworkbench.masuk",
           "group": "navigation@1"
+        },
+        {
+          "command": "dsworkbench.env.setup",
+          "when": "view == dsworkbench.status",
+          "group": "navigation@1"
+        },
+        {
+          "command": "dsworkbench.env.check",
+          "when": "view == dsworkbench.status",
+          "group": "navigation@2"
+        },
+        {
+          "command": "dsworkbench.env.refresh",
+          "when": "view == dsworkbench.status",
+          "group": "navigation@3"
+        },
+        {
+          "command": "dsworkbench.env.showOutput",
+          "when": "view == dsworkbench.status",
+          "group": "1_log@1"
+        },
+        {
+          "command": "dsworkbench.getStarted",
+          "when": "view == dsworkbench.status",
+          "group": "1_log@2"
         }
       ],
       "view/item/context": [
@@ -485,6 +576,36 @@
           "command": "dsworkbench.sql.stopService",
           "when": "view == dsworkbench.basisData && viewItem == klasterMenyala",
           "group": "inline@1"
+        },
+        {
+          "command": "dsworkbench.env.install",
+          "when": "view == dsworkbench.status && viewItem == profilBelum",
+          "group": "inline@1"
+        },
+        {
+          "command": "dsworkbench.env.update",
+          "when": "view == dsworkbench.status && viewItem == profilPerlu",
+          "group": "inline@1"
+        },
+        {
+          "command": "dsworkbench.env.install",
+          "when": "view == dsworkbench.status && viewItem == profilBelum",
+          "group": "1_env@1"
+        },
+        {
+          "command": "dsworkbench.env.update",
+          "when": "view == dsworkbench.status && viewItem == profilPerlu",
+          "group": "1_env@1"
+        },
+        {
+          "command": "dsworkbench.env.openFolder",
+          "when": "view == dsworkbench.status && viewItem == folderRuntime",
+          "group": "inline@1"
+        },
+        {
+          "command": "dsworkbench.env.openFolder",
+          "when": "view == dsworkbench.status && viewItem == folderRuntime",
+          "group": "1_env@1"
         }
       ],
       "notebook/toolbar": [
@@ -538,6 +659,48 @@
         "label": "DSWorkbench Terang",
         "uiTheme": "vs",
         "path": "./themes/dsworkbench-terang.json"
+      }
+    ],
+    "walkthroughs": [
+      {
+        "id": "dsworkbench.mulai",
+        "title": "Mulai dengan DSWorkbench",
+        "description": "Tiga langkah sampai notebook praktikum berjalan di komputer Anda.",
+        "steps": [
+          {
+            "id": "dsworkbench.mulai.masuk",
+            "title": "Masuk akun",
+            "description": "Masuk dengan akun Workbench Anda. Aplikasi menampilkan kode pendek; ketik kode itu di halaman Workbench pada peramban. Kata sandi tidak diminta di sini.\n[Masuk](command:dsworkbench.login)",
+            "media": {
+              "markdown": "media/walkthrough/masuk.md"
+            },
+            "completionEvents": [
+              "onContext:dsworkbench.masuk"
+            ]
+          },
+          {
+            "id": "dsworkbench.mulai.lingkungan",
+            "title": "Siapkan lingkungan",
+            "description": "Pasang lingkungan Python praktikum untuk mata kuliah Anda. Lingkungan yang dipakai Kelas Anda sudah dicentang; pemasangan butuh internet dan beberapa menit.\n[Siapkan lingkungan](command:dsworkbench.env.setup)",
+            "media": {
+              "markdown": "media/walkthrough/lingkungan.md"
+            },
+            "completionEvents": [
+              "onContext:dsworkbench.lingkunganSiap"
+            ]
+          },
+          {
+            "id": "dsworkbench.mulai.kelas",
+            "title": "Buka Kelas",
+            "description": "Buka folder mata kuliah Anda, lalu siapkan berkas modul dari bilah samping \"Kelas saya\".\n[Buka folder mata kuliah](command:dsworkbench.openCourse)",
+            "media": {
+              "markdown": "media/walkthrough/kelas.md"
+            },
+            "completionEvents": [
+              "onContext:dsworkbench.mataKuliahTerbuka"
+            ]
+          }
+        ]
       }
     ]
   }

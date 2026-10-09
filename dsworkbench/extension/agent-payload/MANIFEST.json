@@ -1,11 +1,11 @@
 {
 	"schema": 1,
 	"agentVersion": "0.4.10",
-	"commit": "e19ddb32e08c4f013807c5359a6bdd24a7009335",
+	"commit": "f84596e597c422175b270aff3ababe3bfce7c13e",
 	"dirty": false,
 	"source": "agent/local-runner + packages/{jupyter,checkpoint,workspace,datasets} (daftar: agent_package.build_zip)",
 	"fileCount": 190,
-	"totalBytes": 4612165,
+	"totalBytes": 4612679,
 	"files": [
 		{
 			"path": "assets/workbench-agent.icns",
@@ -99,8 +99,8 @@
 		},
 		{
 			"path": "src/workbench_agent/env_setup.py",
-			"size": 42811,
-			"sha256": "f93bdbd2b492cb47c9a4c5922c544dc108e28bbd966a9408ff0f97324b1c8bb1"
+			"size": 43325,
+			"sha256": "1011052ccf2ff2f0ddde2360fc820761d685cee2e3ca86cc00b4a6e94ed643d6"
 		},
 		{
 			"path": "src/workbench_agent/errors.py",
