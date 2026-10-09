@@ -30,6 +30,8 @@ env:
   ORG_NAME: ${{ github.repository_owner }}
   OS_NAME: osx
   SHOULD_BUILD: yes
+  SHOULD_BUILD_REH: no
+  SHOULD_BUILD_REH_WEB: no
   MAX_OLD_SPACE_SIZE: 12288
   VSCODE_QUALITY: ${{ (github.ref == 'refs/heads/insider' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'insider')) && 'insider' || 'stable' }}
 

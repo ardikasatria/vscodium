@@ -648,7 +648,7 @@
       "default": false
     }
   },
-  "nameShort": "DSWorkbench",
+  "nameShort": "DSWorkbench IDE",
   "nameLong": "DSWorkbench",
   "applicationName": "dsworkbench",
   "dataFolderName": ".dsworkbench",
