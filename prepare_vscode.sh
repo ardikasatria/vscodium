@@ -262,7 +262,7 @@ if [[ "${OS_NAME}" == "linux" ]]; then
   if [[ "${VSCODE_QUALITY}" == "insider" ]]; then
     sed -i "s/code-oss/codium-insiders/" resources/linux/debian/postinst.template
   else
-    sed -i "s/code-oss/codium/" resources/linux/debian/postinst.template
+    sed -i "s/code-oss/${BINARY_NAME}/" resources/linux/debian/postinst.template
   fi
 
   # fix the packages metadata

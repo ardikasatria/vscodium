@@ -647,5 +647,39 @@
     "gruntfuggly.todo-tree": {
       "default": false
     }
+  },
+  "nameShort": "DSWorkbench",
+  "nameLong": "DSWorkbench",
+  "applicationName": "dsworkbench",
+  "dataFolderName": ".dsworkbench",
+  "linuxIconName": "dsworkbench",
+  "urlProtocol": "dsworkbench",
+  "serverApplicationName": "dsworkbench-server",
+  "serverDataFolderName": ".dsworkbench-server",
+  "tunnelApplicationName": "dsworkbench-tunnel",
+  "darwinBundleIdentifier": "id.ac.itera.sainsdata.dsworkbench.ide",
+  "win32AppUserModelId": "ITERA.SainsData.DSWorkbench",
+  "win32DirName": "DSWorkbench",
+  "win32MutexName": "dsworkbenchide",
+  "win32NameVersion": "DSWorkbench",
+  "win32RegValueName": "DSWorkbench",
+  "win32ShellNameShort": "DSWorkbench",
+  "win32AppId": "{{0AC53AF9-4BB0-4814-9E3A-FF8D136A75C6}",
+  "win32x64AppId": "{{A73E5B11-AB3C-4461-8A9C-2D9FFC0CAD2F}",
+  "win32arm64AppId": "{{10D3A144-28C3-4D43-BC2A-E9EB4913CEB3}",
+  "win32UserAppId": "{{4032AA8D-8C0F-44F0-A088-696E8CC26FBE}",
+  "win32x64UserAppId": "{{8CCB724D-302F-4BCD-9E2E-20F74C0B427D}",
+  "win32arm64UserAppId": "{{1F5D2824-7848-43A6-832E-C0C8B2B67212}",
+  "win32TunnelServiceMutex": "dsworkbenchide-tunnelservice",
+  "win32TunnelMutex": "dsworkbenchide-tunnel",
+  "licenseUrl": "https://github.com/ardikasatria/vscodium/blob/dsworkbench/LICENSE",
+  "reportIssueUrl": "https://sditera.cloud/help",
+  "win32ContextMenu": {
+    "x64": {
+      "clsid": "E3D298C9-F146-4512-91EB-4F88F15C69A0"
+    },
+    "arm64": {
+      "clsid": "9FE69B04-456C-43C5-BC0C-A90C6776F584"
+    }
   }
 }
