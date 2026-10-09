@@ -101,7 +101,6 @@ jobs:
       matrix:
         vscode_arch:
           - x64
-          - arm64
     defaults:
       run:
         shell: bash
@@ -110,6 +109,8 @@ jobs:
       MS_COMMIT: ${{ needs.check.outputs.MS_COMMIT }}
       MS_TAG: ${{ needs.check.outputs.MS_TAG }}
       RELEASE_VERSION: ${{ needs.check.outputs.RELEASE_VERSION }}
+      SHOULD_BUILD_MSI: no
+      SHOULD_BUILD_MSI_NOUP: no
       SHOULD_BUILD_REH: no
       SHOULD_BUILD_REH_WEB: no
       VSCODE_ARCH: ${{ matrix.vscode_arch }}
@@ -144,7 +145,7 @@ jobs:
 
       - name: Build
         env:
-          DISABLE_MSI: ${{ vars[format('DISABLE_{0}_MSI', ((github.ref == 'refs/heads/insider' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'insider')) && 'INSIDER' || 'STABLE'))] }}
+          DISABLE_MSI: yes
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           npm_config_arch: ${{ matrix.vscode_arch }}
           npm_config_target_arch: ${{ matrix.vscode_arch }}
