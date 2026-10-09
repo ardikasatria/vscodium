@@ -80,6 +80,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./build.sh
 
+      - name: Embed DSWorkbench extension
+        run: ./dsworkbench/embed_extension.sh
+
       - name: Prepare assets
         run: ./prepare_assets.sh
         if: env.SHOULD_BUILD == 'yes' && github.event.inputs.generate_assets == 'true'

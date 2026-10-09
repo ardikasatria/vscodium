@@ -1,0 +1,44 @@
+{
+  "_catatan": "Daftar RuntimeProfile yang dapat dipasang Local Runner (ADR-041). Agent hanya mengenal profil yang tertulis di sini; nama lain dari browser ditolak. Menambah profil = satu entri di sini + satu berkas requirements, tanpa kode per mata kuliah.",
+  "default": "python-data-science",
+  "profiles": {
+    "python-data-science": {
+      "name": "Data Science (Data Wrangling)",
+      "requirements": "python-data-science.txt",
+      "legacyLayout": true,
+      "requiredImports": ["numpy", "pandas", "matplotlib", "sklearn", "yaml", "certifi"],
+      "allowSourceBuild": true
+    },
+    "python-deep-learning": {
+      "name": "Deep Learning (PyTorch CPU)",
+      "requirements": "python-deep-learning.txt",
+      "legacyLayout": false,
+      "requiredImports": ["torch", "torchvision", "numpy", "pandas", "matplotlib", "sklearn", "yaml", "certifi"],
+      "allowSourceBuild": false,
+      "supportedPlatforms": ["win32-amd64", "darwin-arm64", "linux-x86_64", "linux-aarch64"],
+      "linuxCpuIndex": {
+        "url": "https://download.pytorch.org/whl/cpu",
+        "packages": ["torch", "torchvision"]
+      },
+      "estimate": {
+        "downloadMiB": 230,
+        "diskGiB": 2,
+        "minutes": "5-15"
+      }
+    },
+    "python-data-warehouse": {
+      "name": "Pergudangan Data (PostgreSQL + dbt)",
+      "requirements": "python-data-warehouse.txt",
+      "legacyLayout": false,
+      "requiredImports": ["psycopg2", "sqlalchemy", "pandas", "faker", "dotenv", "dbt", "matplotlib", "yaml", "certifi"],
+      "allowSourceBuild": false,
+      "supportedPlatforms": ["win32-amd64", "darwin-arm64", "darwin-x86_64", "linux-x86_64", "linux-aarch64"],
+      "services": ["postgres-17"],
+      "estimate": {
+        "downloadMiB": 150,
+        "diskGiB": 1,
+        "minutes": "5-15"
+      }
+    }
+  }
+}

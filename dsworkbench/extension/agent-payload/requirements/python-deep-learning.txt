@@ -1,0 +1,36 @@
+# Local Runner — pustaka praktikum Deep Learning (SD25-30003)
+#
+# Profil python-deep-learning untuk laptop mahasiswa. Dipasang HANYA lewat
+# `workbench-agent ensure-env --profile python-deep-learning` atau menu wizard
+# "Lingkungan mata kuliah lain" -- tidak pernah oleh peluncur secara diam-diam
+# (ADR-041 §5). Mahasiswa Data Wrangling tidak pernah mengunduh berkas ini.
+#
+# Provenance: subset runtimes/python-deep-learning/requirements.txt (pin sama),
+# yang diadaptasi dari deeplearning/Praktikum/requirements.txt @ 5dcb5f6.
+# JupyterLab, ipykernel, dan ipywidgets tidak ikut: kernel Run cell berjalan
+# sebagai proses anak agent, bukan Jupyter Server di laptop. optuna dan tqdm
+# tidak diimpor notebook mana pun. IPython ikut (DL-05): starter Modul 05 dan
+# sel analisis memakai `from IPython.display import Markdown, display`; kernel
+# agent mengganti `display` dan merender Markdown sendiri.
+#
+# Wheel CPU: Windows dan macOS dari PyPI. Di Linux, torch dan torchvision
+# dipasang lebih dulu dari indeks CPU PyTorch dengan --no-deps (lihat
+# profiles.json), karena wheel PyPI Linux menarik paket CUDA berukuran GB.
+# Tidak ada --extra-index-url di sini.
+
+-r _agent-base.txt
+
+# --- deep learning ----------------------------------------------------------
+torch==2.14.0
+torchvision==0.29.0
+
+# --- inti (versi sama dengan python-data-science) ---------------------------
+numpy==2.5.3
+pandas==3.0.5
+scikit-learn==1.9.1
+matplotlib==3.11.2
+seaborn==0.13.2
+Pillow==12.3.0
+
+# --- tampilan sel (IPython.display) ----------------------------------------
+ipython==9.17.1

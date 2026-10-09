@@ -681,5 +681,8 @@
     "arm64": {
       "clsid": "9FE69B04-456C-43C5-BC0C-A90C6776F584"
     }
+  },
+  "configurationDefaults": {
+    "workbench.colorTheme": "DSWorkbench Gelap"
   }
 }

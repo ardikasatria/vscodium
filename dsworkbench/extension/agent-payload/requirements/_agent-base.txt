@@ -1,0 +1,13 @@
+# Pustaka yang dipakai agent itu sendiri, bukan oleh notebook.
+#
+# certifi: client.py memuat bundel sertifikat ini untuk memverifikasi TLS ke
+# Control API. Python python.org di macOS datang tanpa sertifikat akar sama
+# sekali; tanpa bundel ini pairing gagal dengan CERTIFICATE_VERIFY_FAILED.
+# PyYAML: termasuk pemeriksaan kesiapan (`yaml`) sejak profil pertama.
+#
+# Setiap profil wajib membawa keduanya pada versi yang sama (ADR-041 §2):
+# profil baru lewat `-r _agent-base.txt`; python-data-science.txt lewat pin
+# yang memang sudah ada di dalamnya, karena berkas itu harus tetap byte-identik
+# dengan requirements.txt lama agar mahasiswa DW tidak memasang ulang.
+certifi==2026.7.22
+PyYAML==6.0.3

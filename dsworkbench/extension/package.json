@@ -1,0 +1,544 @@
+{
+  "name": "dsworkbench",
+  "displayName": "DSWorkbench",
+  "description": "Kelas, notebook, tugas, checkpoint, SQL, dan terminal praktikum Sains Data ITERA, dijalankan di komputer Anda lewat Local Runner.",
+  "version": "0.1.0",
+  "publisher": "sditera",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.106.0"
+  },
+  "categories": [
+    "Notebooks",
+    "Education",
+    "Themes",
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onNotebook:jupyter-notebook"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "DSWorkbench menjalankan kode notebook di komputer ini; hanya aktif di folder yang dipercaya."
+    },
+    "virtualWorkspaces": false
+  },
+  "contributes": {
+    "configuration": {
+      "title": "DSWorkbench",
+      "properties": {
+        "dsworkbench.serverUrl": {
+          "type": "string",
+          "default": "https://sditera.cloud",
+          "scope": "machine",
+          "markdownDescription": "Alamat server Workbench. Harus `https://`, kecuali untuk `localhost` saat pengembangan."
+        },
+        "dsworkbench.agent.command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "scope": "machine",
+          "markdownDescription": "Perintah dasar Local Runner, mis. `[\"/jalur/python\", \"-m\", \"workbench_agent.cli\"]`. Ekstensi menambahkan `--url`, `--state-dir`, dan subperintahnya sendiri. Kosong = deteksi otomatis dari pemasangan aplikasi DSWorkbench."
+        },
+        "dsworkbench.agent.stateDir": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "markdownDescription": "Direktori penyimpanan kredensial perangkat Local Runner. Kosong = bawaan agent (`~/.workbench-agent`)."
+        },
+        "dsworkbench.agent.env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "scope": "machine",
+          "markdownDescription": "Variabel lingkungan tambahan untuk proses Local Runner (untuk pengembangan, mis. `PYTHONPATH`)."
+        },
+        "dsworkbench.agent.useBundled": {
+          "type": "boolean",
+          "default": true,
+          "scope": "machine",
+          "markdownDescription": "Jalankan salinan Local Runner yang dibawa ekstensi (`agent-payload/`) dengan lingkungan Python praktikum dari pemasangan aplikasi DSWorkbench yang sudah ada. Matikan untuk memakai Local Runner terpasang apa adanya."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "dsworkbench.login",
+        "title": "Masuk",
+        "category": "DSWorkbench",
+        "icon": "$(sign-in)"
+      },
+      {
+        "command": "dsworkbench.logout",
+        "title": "Keluar",
+        "category": "DSWorkbench",
+        "icon": "$(sign-out)"
+      },
+      {
+        "command": "dsworkbench.showMenu",
+        "title": "Menu",
+        "category": "DSWorkbench"
+      },
+      {
+        "command": "dsworkbench.refreshKelas",
+        "title": "Muat ulang Kelas",
+        "category": "DSWorkbench",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "dsworkbench.openCourse",
+        "title": "Buka folder mata kuliah",
+        "category": "DSWorkbench",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "dsworkbench.openInWeb",
+        "title": "Buka di web",
+        "category": "DSWorkbench",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "dsworkbench.restartAgent",
+        "title": "Mulai ulang Local Runner",
+        "category": "DSWorkbench"
+      },
+      {
+        "command": "dsworkbench.showAgentLog",
+        "title": "Tampilkan log Local Runner",
+        "category": "DSWorkbench"
+      },
+      {
+        "command": "dsworkbench.openSettings",
+        "title": "Buka pengaturan",
+        "category": "DSWorkbench"
+      },
+      {
+        "command": "dsworkbench.notebook.restartKernel",
+        "title": "Mulai ulang kernel",
+        "category": "DSWorkbench",
+        "icon": "$(debug-restart)"
+      },
+      {
+        "command": "dsworkbench.prepareModule",
+        "title": "Siapkan berkas modul",
+        "category": "DSWorkbench",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "dsworkbench.refreshTugas",
+        "title": "Muat ulang Tugas",
+        "category": "DSWorkbench",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "dsworkbench.openTaskInWeb",
+        "title": "Buka tugas di web",
+        "category": "DSWorkbench",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "dsworkbench.runCheckpoint",
+        "title": "Jalankan checkpoint",
+        "category": "DSWorkbench",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "dsworkbench.runCheckpointTask",
+        "title": "Jalankan checkpoint (Mode tugas)",
+        "category": "DSWorkbench",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "dsworkbench.showCheckpointOutput",
+        "title": "Tampilkan hasil checkpoint",
+        "category": "DSWorkbench",
+        "icon": "$(output)"
+      },
+      {
+        "command": "dsworkbench.submitTask",
+        "title": "Kumpulkan tugas",
+        "category": "DSWorkbench",
+        "icon": "$(cloud-upload)",
+        "enablement": "dsworkbench.masuk && dsworkbench.daring"
+      },
+      {
+        "command": "dsworkbench.sql.runFile",
+        "title": "Jalankan SQL",
+        "category": "DSWorkbench",
+        "icon": "$(play)"
+      },
+      {
+        "command": "dsworkbench.sql.runSelection",
+        "title": "Jalankan pilihan",
+        "category": "DSWorkbench",
+        "icon": "$(run-above)"
+      },
+      {
+        "command": "dsworkbench.sql.preview",
+        "title": "Pratinjau 100 baris",
+        "category": "DSWorkbench",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "dsworkbench.sql.serviceMenu",
+        "title": "Basis data praktikum",
+        "category": "DSWorkbench",
+        "icon": "$(database)"
+      },
+      {
+        "command": "dsworkbench.sql.refresh",
+        "title": "Muat ulang Basis data",
+        "category": "DSWorkbench",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "dsworkbench.sql.startService",
+        "title": "Nyalakan basis data",
+        "category": "DSWorkbench",
+        "icon": "$(play)"
+      },
+      {
+        "command": "dsworkbench.sql.stopService",
+        "title": "Hentikan basis data",
+        "category": "DSWorkbench",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "dsworkbench.useTheme",
+        "title": "Pakai tema DSWorkbench",
+        "category": "DSWorkbench",
+        "icon": "$(color-mode)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "dsworkbench",
+          "title": "DSWorkbench",
+          "icon": "media/dsworkbench.svg"
+        }
+      ],
+      "panel": [
+        {
+          "id": "dsworkbenchPanel",
+          "title": "DSWorkbench SQL",
+          "icon": "media/dsworkbench.svg"
+        }
+      ]
+    },
+    "views": {
+      "dsworkbench": [
+        {
+          "id": "dsworkbench.kelas",
+          "name": "Kelas saya",
+          "icon": "media/dsworkbench.svg",
+          "contextualTitle": "DSWorkbench"
+        },
+        {
+          "id": "dsworkbench.tugas",
+          "name": "Tugas & tenggat",
+          "icon": "media/dsworkbench.svg",
+          "contextualTitle": "DSWorkbench"
+        },
+        {
+          "id": "dsworkbench.basisData",
+          "name": "Basis data",
+          "icon": "media/dsworkbench.svg",
+          "contextualTitle": "DSWorkbench",
+          "visibility": "collapsed"
+        }
+      ],
+      "dsworkbenchPanel": [
+        {
+          "id": "dsworkbench.sqlHasil",
+          "name": "Hasil SQL",
+          "type": "webview",
+          "icon": "media/dsworkbench.svg",
+          "contextualTitle": "DSWorkbench"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "dsworkbench.kelas",
+        "contents": "Masuk untuk melihat Kelas Anda.\n[Masuk](command:dsworkbench.login)\nAnda akan diminta mengetik kode pendek di halaman Workbench pada peramban. Kata sandi tidak diminta di sini.",
+        "when": "!dsworkbench.masuk"
+      },
+      {
+        "view": "dsworkbench.kelas",
+        "contents": "Anda belum bergabung di Kelas mana pun.\n[Buka Workbench di web](command:dsworkbench.openInWeb)",
+        "when": "dsworkbench.masuk && dsworkbench.kelasKosong"
+      },
+      {
+        "view": "dsworkbench.tugas",
+        "contents": "Masuk untuk melihat tugas dan tenggat Anda.\n[Masuk](command:dsworkbench.login)",
+        "when": "!dsworkbench.masuk"
+      },
+      {
+        "view": "dsworkbench.tugas",
+        "contents": "Tidak ada tugas untuk mata kuliah ini.\n[Muat ulang](command:dsworkbench.refreshTugas)",
+        "when": "dsworkbench.masuk && dsworkbench.tugasKosong"
+      },
+      {
+        "view": "dsworkbench.basisData",
+        "contents": "Masuk untuk melihat basis data praktikum.\n[Masuk](command:dsworkbench.login)",
+        "when": "!dsworkbench.masuk"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "dsworkbench.login",
+          "when": "!dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.logout",
+          "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.refreshKelas",
+          "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.openCourse",
+          "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.notebook.restartKernel",
+          "when": "notebookType == 'jupyter-notebook'"
+        },
+        {
+          "command": "dsworkbench.refreshTugas",
+          "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.runCheckpoint",
+          "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.runCheckpointTask",
+          "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.submitTask",
+          "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.openTaskInWeb",
+          "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.sql.serviceMenu",
+          "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.sql.startService",
+          "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.sql.stopService",
+          "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.sql.refresh",
+          "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.prepareModule",
+          "when": "false"
+        },
+        {
+          "command": "dsworkbench.sql.preview",
+          "when": "false"
+        },
+        {
+          "command": "dsworkbench.sql.runFile",
+          "when": "dsworkbench.masuk && resourceExtname == .sql"
+        },
+        {
+          "command": "dsworkbench.sql.runSelection",
+          "when": "dsworkbench.masuk && editorIsOpen"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "dsworkbench.refreshKelas",
+          "when": "view == dsworkbench.kelas && dsworkbench.masuk",
+          "group": "navigation"
+        },
+        {
+          "command": "dsworkbench.refreshTugas",
+          "when": "view == dsworkbench.tugas && dsworkbench.masuk",
+          "group": "navigation@2"
+        },
+        {
+          "command": "dsworkbench.showCheckpointOutput",
+          "when": "view == dsworkbench.tugas && dsworkbench.masuk",
+          "group": "navigation@1"
+        },
+        {
+          "command": "dsworkbench.sql.refresh",
+          "when": "view == dsworkbench.basisData && dsworkbench.masuk",
+          "group": "navigation@2"
+        },
+        {
+          "command": "dsworkbench.sql.serviceMenu",
+          "when": "view == dsworkbench.basisData && dsworkbench.masuk",
+          "group": "navigation@1"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "dsworkbench.openCourse",
+          "when": "view == dsworkbench.kelas && viewItem == kelas",
+          "group": "inline@1"
+        },
+        {
+          "command": "dsworkbench.openInWeb",
+          "when": "view == dsworkbench.kelas && viewItem =~ /^(kelas|lesson)/",
+          "group": "inline@2"
+        },
+        {
+          "command": "dsworkbench.openCourse",
+          "when": "view == dsworkbench.kelas && viewItem == kelas",
+          "group": "1_buka@1"
+        },
+        {
+          "command": "dsworkbench.openInWeb",
+          "when": "view == dsworkbench.kelas && viewItem =~ /^(kelas|lesson)/",
+          "group": "1_buka@2"
+        },
+        {
+          "command": "dsworkbench.prepareModule",
+          "when": "view == dsworkbench.kelas && viewItem =~ /^(lessonModul|modulBerkas)$/",
+          "group": "inline@0"
+        },
+        {
+          "command": "dsworkbench.prepareModule",
+          "when": "view == dsworkbench.kelas && viewItem =~ /^(lessonModul|modulBerkas)$/",
+          "group": "1_buka@0"
+        },
+        {
+          "command": "dsworkbench.runCheckpoint",
+          "when": "view == dsworkbench.tugas && viewItem == tugas",
+          "group": "inline@1"
+        },
+        {
+          "command": "dsworkbench.runCheckpointTask",
+          "when": "view == dsworkbench.tugas && viewItem == tugas",
+          "group": "inline@2"
+        },
+        {
+          "command": "dsworkbench.submitTask",
+          "when": "view == dsworkbench.tugas && viewItem == tugas",
+          "group": "inline@3"
+        },
+        {
+          "command": "dsworkbench.openTaskInWeb",
+          "when": "view == dsworkbench.tugas && viewItem =~ /^tugas/",
+          "group": "inline@4"
+        },
+        {
+          "command": "dsworkbench.runCheckpoint",
+          "when": "view == dsworkbench.tugas && viewItem == tugas",
+          "group": "1_tugas@1"
+        },
+        {
+          "command": "dsworkbench.runCheckpointTask",
+          "when": "view == dsworkbench.tugas && viewItem == tugas",
+          "group": "1_tugas@2"
+        },
+        {
+          "command": "dsworkbench.submitTask",
+          "when": "view == dsworkbench.tugas && viewItem == tugas",
+          "group": "1_tugas@3"
+        },
+        {
+          "command": "dsworkbench.openTaskInWeb",
+          "when": "view == dsworkbench.tugas && viewItem =~ /^tugas/",
+          "group": "2_web@1"
+        },
+        {
+          "command": "dsworkbench.sql.preview",
+          "when": "view == dsworkbench.basisData && viewItem == tabel",
+          "group": "inline@1"
+        },
+        {
+          "command": "dsworkbench.sql.preview",
+          "when": "view == dsworkbench.basisData && viewItem == tabel",
+          "group": "1_db@1"
+        },
+        {
+          "command": "dsworkbench.sql.startService",
+          "when": "view == dsworkbench.basisData && viewItem == klasterMati",
+          "group": "inline@1"
+        },
+        {
+          "command": "dsworkbench.sql.stopService",
+          "when": "view == dsworkbench.basisData && viewItem == klasterMenyala",
+          "group": "inline@1"
+        }
+      ],
+      "notebook/toolbar": [
+        {
+          "command": "dsworkbench.notebook.restartKernel",
+          "when": "notebookType == 'jupyter-notebook' && notebookKernel =~ /dsworkbench-local-runner/",
+          "group": "navigation/execute@5"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "dsworkbench.sql.runFile",
+          "when": "dsworkbench.masuk && resourceExtname == .sql",
+          "group": "navigation@1"
+        },
+        {
+          "command": "dsworkbench.sql.runSelection",
+          "when": "dsworkbench.masuk && resourceExtname == .sql",
+          "group": "navigation@2"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "dsworkbench.sql.runSelection",
+          "when": "dsworkbench.masuk && resourceExtname == .sql",
+          "group": "1_dsworkbench@1"
+        },
+        {
+          "command": "dsworkbench.sql.runFile",
+          "when": "dsworkbench.masuk && resourceExtname == .sql",
+          "group": "1_dsworkbench@2"
+        }
+      ]
+    },
+    "terminal": {
+      "profiles": [
+        {
+          "id": "dsworkbench.terminal",
+          "title": "DSWorkbench: Terminal mata kuliah",
+          "icon": "terminal"
+        }
+      ]
+    },
+    "themes": [
+      {
+        "label": "DSWorkbench Gelap",
+        "uiTheme": "vs-dark",
+        "path": "./themes/dsworkbench-gelap.json"
+      },
+      {
+        "label": "DSWorkbench Terang",
+        "uiTheme": "vs",
+        "path": "./themes/dsworkbench-terang.json"
+      }
+    ]
+  }
+}

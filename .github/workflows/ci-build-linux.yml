@@ -162,6 +162,10 @@ jobs:
         run: ./build/linux/package_bin.sh
         if: env.DISABLED != 'yes'
 
+      - name: Embed DSWorkbench extension
+        run: ./dsworkbench/embed_extension.sh
+        if: env.DISABLED != 'yes'
+
       - name: Package binary
         run: tar -czf vscode-bin.tar.gz -C "VSCode-linux-${VSCODE_ARCH}" .
         if: env.DISABLED != 'yes' && matrix.upload_binary == 'yes'

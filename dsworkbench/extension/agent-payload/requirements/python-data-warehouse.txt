@@ -1,0 +1,32 @@
+# Local Runner — pustaka praktikum Pergudangan Data (SD25-31007)
+#
+# Profil python-data-warehouse (ADR-053, ADR-054 §1). Dipasang HANYA lewat
+# `workbench-agent ensure-env --profile python-data-warehouse` atau menu
+# DSWorkbench -- tidak pernah oleh peluncur secara diam-diam (ADR-041 §5).
+# Profil ini juga memasang layanan `postgres-17` (services.json).
+#
+# Provenance: pergudangandata/Praktikum/requirements.txt @ 625eb30 (psycopg2,
+# SQLAlchemy, pandas, Faker, python-dotenv) + dbt Core untuk Modul 08/10.
+# Pin disamakan dengan python-data-science bila paketnya sama.
+#
+# dbt-core DIPATOK 1.11.x: 1.12.x mewajibkan dbt-core-experimental-parser yang
+# di PyPI hanya berupa sdist, sedangkan profil ini tidak membangun dari sumber
+# (spike PGD-00). Superset tidak dipasang di laptop (ADR-054 §5).
+
+-r _agent-base.txt
+
+# --- inti (versi sama dengan python-data-science) ---------------------------
+numpy==2.5.3
+pandas==3.0.5
+matplotlib==3.11.2
+SQLAlchemy==2.0.52
+python-dotenv==1.2.3
+
+# --- basis data dan data sintetis ------------------------------------------
+psycopg2-binary==2.9.13
+# DIPATOK naskah: sidik data kanonik NusaMart hanya berlaku untuk versi ini.
+Faker==40.39.0
+
+# --- dbt Core (Modul 08, 10) ------------------------------------------------
+dbt-core==1.11.15
+dbt-postgres==1.11.0

@@ -1,0 +1,51 @@
+{
+  "_catatan": "Layanan yang dikelola Local Runner (ADR-053). Bundel dibangun scripts/build-postgres-bundle.py dari biner resmi EDB dan diterbitkan ke bucket publik; sha256/ukuran di sini DIPATOK dan diverifikasi sebelum ekstrak. Linux memakai PostgreSQL sistem (PGDG); agent tidak memasang paket sistem.",
+  "services": {
+    "postgres-17": {
+      "name": "PostgreSQL 17",
+      "version": "17.11",
+      "requiredBinaries": [
+        "postgres",
+        "initdb",
+        "pg_ctl",
+        "psql",
+        "pg_dump",
+        "pg_restore"
+      ],
+      "requiredExtensions": [
+        "btree_gist",
+        "postgres_fdw",
+        "tablefunc",
+        "pg_stat_statements"
+      ],
+      "platforms": {
+        "win32-amd64": {
+          "source": "bundle",
+          "url": "https://storage.googleapis.com/sigerciv1-workbench-desktop/services/postgres/17.11/postgres-17.11-win32-amd64.zip",
+          "sha256": "bece750e887042bd130a957b3dcd5deb734629c0b26af5f041926853b51d9c0d",
+          "sizeBytes": 26829986
+        },
+        "darwin-arm64": {
+          "source": "bundle",
+          "url": "https://storage.googleapis.com/sigerciv1-workbench-desktop/services/postgres/17.11/postgres-17.11-darwin-universal.zip",
+          "sha256": "8da36547738f7ba09763392f19c4c86460f21316f49659a8f6fb214acd6e3b3d",
+          "sizeBytes": 52627542
+        },
+        "darwin-x86_64": {
+          "source": "bundle",
+          "url": "https://storage.googleapis.com/sigerciv1-workbench-desktop/services/postgres/17.11/postgres-17.11-darwin-universal.zip",
+          "sha256": "8da36547738f7ba09763392f19c4c86460f21316f49659a8f6fb214acd6e3b3d",
+          "sizeBytes": 52627542
+        },
+        "linux-x86_64": {
+          "source": "system",
+          "major": 17
+        },
+        "linux-aarch64": {
+          "source": "system",
+          "major": 17
+        }
+      }
+    }
+  }
+}

@@ -151,6 +151,9 @@ jobs:
           npm_config_target_arch: ${{ matrix.vscode_arch }}
         run: ./build/windows/package.sh
 
+      - name: Embed DSWorkbench extension
+        run: ./dsworkbench/embed_extension.sh
+
       - name: Prepare assets
         run: ./prepare_assets.sh
         if: github.event.inputs.generate_assets == 'true'

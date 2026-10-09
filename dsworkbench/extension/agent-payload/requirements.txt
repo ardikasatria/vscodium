@@ -1,0 +1,47 @@
+# Local Runner — pustaka praktikum (Data Wrangling)
+#
+# Provenance: datawrangling/Praktikum/requirements.txt dan
+# runtimes/python-data-science/requirements.txt (versi terpatok sama).
+# JupyterLab/ipykernel tidak ikut: kernel Run cell diagent lewat
+# LocalPythonBackend (exec in-process), bukan Jupyter Server di laptop.
+#
+# Dipasang sekali ke .venv oleh ``workbench-agent ensure-env`` (skrip
+# pasangkan/jalankan memanggilnya otomatis).
+
+# --- inti -------------------------------------------------------------------
+pandas==3.0.5
+numpy==2.5.3
+pyarrow==25.0.1
+
+# --- eksplorasi dan visualisasi ---------------------------------------------
+matplotlib==3.11.2
+seaborn==0.13.2
+missingno==0.5.2
+
+# --- statistik, imputasi, pencilan, encoding --------------------------------
+scipy==1.18.1
+scikit-learn==1.9.1
+
+# --- deduplikasi ------------------------------------------------------------
+RapidFuzz==3.14.6
+
+# --- ekstraksi: API dan web scraping ----------------------------------------
+requests==2.34.2
+# Dideklarasikan eksplisit, bukan dibiarkan ikut sebagai dependensi requests:
+# agent memakainya sendiri lewat urllib untuk memverifikasi sertifikat Control
+# API. Python dari python.org di macOS datang tanpa sertifikat akar sama sekali,
+# dan tanpa bundel ini pairing gagal dengan CERTIFICATE_VERIFY_FAILED.
+certifi==2026.7.22
+beautifulsoup4==4.15.0
+lxml==6.1.3
+Flask==3.1.3
+
+# --- penyimpanan dan pipeline -----------------------------------------------
+SQLAlchemy==2.0.52
+pymongo==4.18.1
+# Modul 08 (SQL vs NoSQL): MongoDB tiruan di memori dengan API pymongo, agar
+# praktikum berjalan di laptop tanpa layanan basis data (keputusan pengampu
+# 2026-10-01). Kode pymongo yang sama berjalan pada MongoDB sungguhan.
+mongomock==4.3.0
+PyYAML==6.0.3
+python-dotenv==1.2.3
