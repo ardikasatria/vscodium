@@ -54,6 +54,14 @@ if [[ -n "${CERTIFICATE_OSX_P12_DATA}" ]]; then
   rm "${ZIP_FILE}"
 
   cd ..
+else
+  # DSWorkbench: tanpa sertifikat Developer ID, bundel hanya membawa tanda tangan
+  # "linker-signed" pada biner utamanya, sehingga segel bundelnya tidak sah dan
+  # macOS dapat menyebutnya "rusak". Tanda tangan ad-hoc (gratis) menyegel seluruh
+  # bundel; pengguna tetap harus memilih "Open Anyway" karena belum dinotarisasi.
+  echo "+ ad-hoc sign"
+  codesign --force --deep --sign - "VSCode-darwin-${VSCODE_ARCH}/"*.app
+  codesign --verify --deep --strict "VSCode-darwin-${VSCODE_ARCH}/"*.app
 fi
 
 if [[ "${SHOULD_BUILD_ZIP}" != "no" ]]; then
