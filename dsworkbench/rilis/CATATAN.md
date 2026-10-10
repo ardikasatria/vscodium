@@ -4,6 +4,8 @@ Aplikasi DSWorkbench yang baru: satu aplikasi untuk notebook, SQL, terminal, dan
 
 **Ini pra-rilis untuk uji terbatas.** Workbench di peramban tetap bisa dipakai. Tutup aplikasi "Data Science Workbench" yang lama sebelum membuka yang ini: aplikasi baru memakai lingkungan Python yang sama.
 
+> **Linux (.deb) diganti.** Paket pertama (`dsworkbench_1.135.06794_amd64.deb`) bermasalah: ekstensi DSWorkbench di dalamnya tidak terbaca pengguna biasa, sehingga panel DSWorkbench tidak muncul. Berkas `.deb` di halaman ini sekarang adalah penggantinya; bila Anda sudah memasang yang lama, pasang ulang dari berkas ini. Windows dan macOS tidak berubah.
+
 ### Yang baru sejak uji 1
 
 - Panel **Naskah modul**, **Beranda**, **Bravais**, dan **Sosial** di dalam aplikasi.

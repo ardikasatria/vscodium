@@ -36,48 +36,80 @@ jobs:
         run: |
           set -euo pipefail
           nilai() { sed -n "s/^$1=//p" dsworkbench/rilis/PICU | tail -n 1; }
-          for k in tag judul run_linux run_macos run_windows; do
+          MODE="$( nilai mode )"; MODE="${MODE:-baru}"
+          [[ "$MODE" == "baru" || "$MODE" == "ganti-linux" ]] || { echo "mode tidak dikenal: $MODE" >&2; exit 1; }
+          echo "MODE=$MODE" >> "$GITHUB_ENV"
+          wajib=( tag run_linux )
+          [[ "$MODE" == "baru" ]] && wajib+=( judul run_macos run_windows )
+          for k in "${wajib[@]}"; do
             v="$( nilai "$k" )"
             [[ -n "$v" ]] || { echo "PICU tanpa $k" >&2; exit 1; }
             echo "${k^^}=$v" >> "$GITHUB_ENV"
           done
           [[ "$( nilai tag )" =~ ^dsworkbench-[0-9A-Za-z.-]+$ ]] || { echo "tag tidak sah" >&2; exit 1; }
 
-      - name: Tolak bila rilis sudah ada
+      - name: Periksa keadaan rilis
         run: |
-          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
-            echo "Rilis $TAG sudah ada; tidak ditimpa." >&2; exit 1
-          fi
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then ADA=ya; else ADA=tidak; fi
+          if [[ "$MODE" == "baru" && "$ADA" == "ya" ]]; then echo "Rilis $TAG sudah ada; tidak ditimpa." >&2; exit 1; fi
+          if [[ "$MODE" == "ganti-linux" && "$ADA" == "tidak" ]]; then echo "Rilis $TAG belum ada." >&2; exit 1; fi
 
       - name: Unduh artefak build
         run: |
           set -euo pipefail
-          mkdir -p a/linux a/mac-arm64 a/mac-x64 a/win
-          gh run download "$RUN_LINUX"   --repo "$REPO" --name bin-x64   --dir a/linux
-          gh run download "$RUN_MACOS"   --repo "$REPO" --name bin-arm64 --dir a/mac-arm64
-          gh run download "$RUN_MACOS"   --repo "$REPO" --name bin-x64   --dir a/mac-x64
-          gh run download "$RUN_WINDOWS" --repo "$REPO" --name bin-x64   --dir a/win
+          mkdir -p a/linux a/mac-arm64 a/mac-x64 a/win rilis
+          gh run download "$RUN_LINUX" --repo "$REPO" --name bin-x64 --dir a/linux
+          if [[ "$MODE" == "baru" ]]; then
+            gh run download "$RUN_MACOS"   --repo "$REPO" --name bin-arm64 --dir a/mac-arm64
+            gh run download "$RUN_MACOS"   --repo "$REPO" --name bin-x64   --dir a/mac-x64
+            gh run download "$RUN_WINDOWS" --repo "$REPO" --name bin-x64   --dir a/win
+          fi
 
       - name: Pilih installer dan verifikasi checksum build
         run: |
           set -euo pipefail
-          mkdir rilis
           ambil() { # folder, pola
             local f; f="$( find "$1" -maxdepth 1 -type f -regextype posix-extended -regex ".*/$2" | head -n 1 )"
             [[ -f "$f" ]] || { echo "tidak ada berkas berpola $2 di $1" >&2; ls -la "$1" >&2; exit 1; }
             ( cd "$1" && sha256sum -c "$( basename "$f" ).sha256" )
             cp "$f" rilis/
           }
-          ambil a/win       'DSWorkbenchUserSetup-x64-[0-9.]+\.exe'
-          ambil a/mac-arm64 'DSWorkbench-darwin-arm64-[0-9.]+\.zip'
-          ambil a/mac-x64   'DSWorkbench-darwin-x64-[0-9.]+\.zip'
-          ambil a/linux     'dsworkbench_[0-9.]+_amd64\.deb'
-          ( cd rilis && sha256sum * > SHA256SUMS && cat SHA256SUMS && ls -la )
+          ambil a/linux 'dsworkbench_[0-9.]+_amd64\.deb'
+          if [[ "$MODE" == "baru" ]]; then
+            ambil a/win       'DSWorkbenchUserSetup-x64-[0-9.]+\.exe'
+            ambil a/mac-arm64 'DSWorkbench-darwin-arm64-[0-9.]+\.zip'
+            ambil a/mac-x64   'DSWorkbench-darwin-x64-[0-9.]+\.zip'
+          fi
+          # Manifes ekstensi tertanam di .deb harus terbaca pengguna biasa (cacat uji 2).
+          DEB="$( ls rilis/dsworkbench_*_amd64.deb )"
+          dpkg-deb -c "$DEB" | grep -E 'extensions/dsworkbench/package\.json$' | tee /dev/stderr | grep -q '^-rw-r--r--' \
+            || { echo "package.json ekstensi di .deb tidak terbaca semua pengguna" >&2; exit 1; }
 
       - name: Terbitkan pra-rilis
+        if: env.MODE == 'baru'
         run: |
           set -euo pipefail
+          ( cd rilis && sha256sum * > SHA256SUMS && cat SHA256SUMS && ls -la )
           gh release create "$TAG" --repo "$REPO" --target "$GITHUB_SHA" --prerelease --latest=false \
             --title "$JUDUL" --notes-file dsworkbench/rilis/CATATAN.md rilis/*
+
+      - name: Ganti paket Linux pada rilis yang ada
+        if: env.MODE == 'ganti-linux'
+        run: |
+          set -euo pipefail
+          BARU="$( basename "$( ls rilis/dsworkbench_*_amd64.deb )" )"
+          gh release download "$TAG" --repo "$REPO" --pattern SHA256SUMS --dir lama
+          for lama in $( gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[].name' | grep -E '^dsworkbench_[0-9.]+_amd64\.deb$' ); do
+            [[ "$lama" == "$BARU" ]] || gh release delete-asset "$TAG" "$lama" --repo "$REPO" --yes
+          done
+          grep -vE '  dsworkbench_[0-9.]+_amd64\.deb$' lama/SHA256SUMS > rilis/SHA256SUMS
+          ( cd rilis && sha256sum "$BARU" >> SHA256SUMS && cat SHA256SUMS )
+          gh release upload "$TAG" --repo "$REPO" --clobber "rilis/$BARU"
+          gh release upload "$TAG" --repo "$REPO" --clobber rilis/SHA256SUMS
+          gh release edit "$TAG" --repo "$REPO" --notes-file dsworkbench/rilis/CATATAN.md
+
+      - name: Keadaan rilis
+        run: |
           gh release view "$TAG" --repo "$REPO" --json url,isPrerelease,assets \
             --jq '.url, "pra-rilis=\(.isPrerelease)", (.assets[] | "\(.name) \(.size)")'

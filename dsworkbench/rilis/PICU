@@ -1,6 +1,6 @@
-# Mengubah berkas ini di cabang dsworkbench menerbitkan pra-rilis dari artefak build CI.
+# Mengubah berkas ini di cabang dsworkbench menjalankan workflow dsworkbench-rilis.
+# mode=baru (bawaan): terbitkan pra-rilis baru dari run build tiga OS.
+# mode=ganti-linux  : ganti paket .deb pada rilis yang sudah ada (hanya run_linux yang dipakai).
+mode=ganti-linux
 tag=dsworkbench-0.1.0-uji.2
-judul=DSWorkbench 0.1.0 — uji 2 (pra-rilis)
-run_linux=38018203857
-run_macos=38018206100
-run_windows=38018208079
+run_linux=38023863486
