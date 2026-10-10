@@ -200,6 +200,9 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends xvfb
+          # AppImage "anylinux" memakai user namespace; Ubuntu 24.04 membatasinya lewat AppArmor
+          # (unshare: write failed /proc/self/uid_map). Pengguna Ubuntu 24.04+ terkena hal yang sama.
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
           chmod +x "${ASET}"
           mkdir appimage && cd appimage
           "${ASET}" --appimage-extract > /dev/null

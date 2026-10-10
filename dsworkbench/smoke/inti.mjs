@@ -593,7 +593,10 @@ try {
 		assert.deepEqual(h.kedua.sebelum, { urutan: 1, berhasil: true, teks: '5' }, 'penghitung notebook kedua mulai dari 1');
 		assert.equal(h.kedua.interupsi.berhasil, false);
 		assert.ok(h.kedua.interupsi.detik < 30, `interupsi butuh ${h.kedua.interupsi.detik} dtk`);
-		assert.match(JSON.stringify(h.kedua.interupsi.keluaran), /KeyboardInterrupt|dihentikan/i);
+		// Windows: proses anak tidak bisa di-SIGINT, jadi kernel dimulai ulang (ADR-049);
+		// sel tetap berhenti, tetapi variabel hilang dan pesannya KernelRestarted.
+		const polaHenti = process.platform === 'win32' ? /KeyboardInterrupt|dihentikan|KernelRestarted|dimulai ulang/i : /KeyboardInterrupt|dihentikan/i;
+		assert.match(JSON.stringify(h.kedua.interupsi.keluaran), polaHenti);
 	});
 	periksa('"Mulai ulang kernel" menghapus variabel dan mengulang penghitung', () => {
 		assert.equal(h.kedua.setelahUlang.berhasil, false);

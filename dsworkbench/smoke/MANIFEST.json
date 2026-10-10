@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "dibuat": "2026-10-10T02:35:59Z",
-  "commit": "74bae1077c85",
+  "dibuat": "2026-10-10T02:41:29Z",
+  "commit": "090fd5d6ee1e",
   "adaPerubahanLokal": false,
   "ekstensi": {
     "id": "sditera.dsworkbench",
@@ -23,7 +23,7 @@
     },
     {
       "jalur": "inti.mjs",
-      "sha256": "c890c69ccc460d8b869c668c9070ca37b4353a8262fb8558c6de65175105b8d9"
+      "sha256": "60970cda3c0e0f47900464c69664a68b325bc6d1e22cd94205989c007408aa89"
     },
     {
       "jalur": "lib/zip.mjs",
