@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "dibuat": "2026-10-10T05:52:50Z",
-  "commit": "e4c7483d0f4d",
+  "dibuat": "2026-10-10T09:17:49Z",
+  "commit": "68b7589890bf",
   "adaPerubahanLokal": false,
   "ekstensi": {
     "id": "sditera.dsworkbench",
-    "versi": "0.1.1",
-    "sha256": "b3e25fbf8d88897c0c2ac2caa1f1a142b2f4675102acdc69179a41d50db5368e"
+    "versi": "0.1.2",
+    "sha256": "42c5d19c917b1e76c27f91f222fb4c1739cc794bd70e353815c19b4c1592f159"
   },
   "berkas": [
     {
@@ -23,11 +23,11 @@
     },
     {
       "jalur": "inti.mjs",
-      "sha256": "60970cda3c0e0f47900464c69664a68b325bc6d1e22cd94205989c007408aa89"
+      "sha256": "3af43d70108052b7fe4dd14264e0d164999f1538e9fd9c5f972ae2cb6b2db9a0"
     },
     {
       "jalur": "lab.mjs",
-      "sha256": "b95e668d398480f3d67a886e87fa0b288dd10e45d89f988f6472985a6212417e"
+      "sha256": "c7a7f1aa3586662cb1edc463b643310ed064c937d58255346c5fd224b7b96a5e"
     },
     {
       "jalur": "lib/zip.mjs",
@@ -35,11 +35,11 @@
     },
     {
       "jalur": "suite-lab.cjs",
-      "sha256": "17488c21b1f2e4381505b498915722aa4a11ed0d1a747e682b764d736b909f93"
+      "sha256": "f448e76f177e00cf123d1aeae34905569920b08f1d5700bb3dd37ac7dd068f14"
     },
     {
       "jalur": "suite.cjs",
-      "sha256": "4f5d7c191908931b045fb234017bf8a2a0953abd9811b2fe9b8f0e2e3ecb84bd"
+      "sha256": "f8be2f61b6e85012db75f788e0315d76ec37858b793b6d9920f4407ada000251"
     },
     {
       "jalur": "uji-asap.mjs",

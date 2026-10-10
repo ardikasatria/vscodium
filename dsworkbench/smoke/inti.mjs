@@ -793,6 +793,24 @@ try {
 		assert.ok(b.html.includes('id="masukan"') && b.html.includes('/media/bravais/bravais.png'));
 	});
 
+	periksa('suara panel: bawaan nyala 0,35 (seperti web); <audio> lokal + media-src lokal saja di keempat panel; Bravais berpikir berbunyi; pengaturan berlaku tanpa memuat ulang', () => {
+		const s = h.suara;
+		assert.deepEqual(s.awal, { aktif: true, volume: 0.35 });
+		assert.ok(s.terkirim.includes('berpikir'), `suara terkirim: ${s.terkirim}`);
+		assert.ok(s.terkirim.every((n) => ['klik', 'buka', 'tutup', 'berpikir', 'jawaban', 'galat', 'notif'].includes(n)));
+		assert.deepEqual([s.mati, s.klikMati, s.terkirimMati], [{ aktif: false, volume: 0.35 }, 'konteks', 0], 'dimatikan: langsung diam');
+		assert.deepEqual([s.nyala, s.akhir], [{ aktif: true, volume: 0.8 }, { aktif: true, volume: 0.35 }]);
+		for (const [nama, html] of [['naskah', h.naskah.html], ['beranda', h.beranda.html], ['bravais', h.bravais.html], ['sosial', s.htmlSosial]]) {
+			const media = cspDari(html).split(';').map((a) => a.trim()).find((a) => a.startsWith('media-src '));
+			assert.ok(media && !/data:|blob:|http:|unsafe|\*(?!\.vscode-cdn\.net)/.test(media), `${nama}: ${media}`);
+			const src = [...html.matchAll(/<audio id="suara-([a-z]+)" preload="auto" src="([^"]*)">/g)];
+			assert.deepEqual(src.map((m) => m[1]), ['klik', 'buka', 'tutup', 'berpikir', 'jawaban', 'galat', 'notif'], nama);
+			for (const m of src) assert.ok(/vscode/.test(m[2]) && /\/media\/suara\/[a-z-]+\.mp3$/.test(m[2]) && !m[2].startsWith('http://'), `${nama}: ${m[2]}`);
+		}
+		for (const f of ['click.mp3', 'open.mp3', 'close.mp3', 'thinking.mp3', 'response.mp3', 'error.mp3', 'xp.mp3', 'CATATAN.txt']) assert.ok(fs.existsSync(path.join(akarMuat, 'media', 'suara', f)), f);
+		assert.deepEqual(fs.readdirSync(path.join(akarMuat, 'media', 'suara')).sort(), ['CATATAN.txt', 'click.mp3', 'close.mp3', 'error.mp3', 'open.mp3', 'response.mp3', 'thinking.mp3', 'xp.mp3']);
+	});
+
 	// --- Fase 7: panel Sosial -------------------------------------------------------
 	periksa('view Sosial terdaftar di container yang sama dengan Bravais (view kedua), perintah dan pengaturan notifikasi ada', () => {
 		const manifest = JSON.parse(fs.readFileSync(path.join(akarMuat, 'package.json'), 'utf8')).contributes;
@@ -812,6 +830,8 @@ try {
 		const minta = sosialPalsu.avatarDiminta.filter((x) => x.jalur === '/social-presence/catalog/rabbit-128.png');
 		assert.equal(minta.length, 1, 'PNG avatar diambil sekali');
 		assert.deepEqual([minta[0].otorisasi, minta[0].cookie], [undefined, undefined]);
+		// Akar sumber lokal harus `file:`; akar `vscode-userdata:` membuat webview menolak PNG avatar (cacat uji 2–3).
+		assert.ok(s.akarSkema.length === 2 && s.akarSkema.every((x) => x === 'file'), `skema akar sumber lokal: ${s.akarSkema}`);
 		assert.ok(s.avatarRani && /vscode/.test(s.avatarRani) && !s.avatarRani.startsWith('http://127.0.0.1') && s.avatarRani.includes('rabbit-128.png'), `alamat avatar: ${s.avatarRani}`);
 		assert.equal(s.sesudah.keadaan.offline[0].avatar.uri, undefined, 'unduhan gagal (404) → inisial');
 		assert.ok(!sosialPalsu.avatarDiminta.some((x) => x.jalur.includes('/lottie/')) || s.tampak, 'animasi hanya diminta panel yang tampak');

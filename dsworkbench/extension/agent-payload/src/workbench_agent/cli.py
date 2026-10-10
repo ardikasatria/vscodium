@@ -199,7 +199,34 @@ _BATAS_ADOPT = 64 * 1024
 _KUNCI_ADOPT = ("deviceId", "credential", "name", "os", "arch")
 
 
-def _cmd_adopt(config: AgentConfig, *, replace: bool = False, masukan=None) -> int:
+def _cabut_pendahulu(config: AgentConfig, lama: DeviceState, baru: DeviceState,
+                     *, buat_klien=None) -> str:
+    """Minta server mencabut perangkat ``lama`` yang baru saja digantikan ``baru``.
+
+    Dipanggil ``adopt --replace`` SETELAH ``device.json`` baru tersimpan, jadi
+    kegagalan apa pun di sini tidak membatalkan masuk. Kredensial lama hanya
+    dikirim ke server yang menerbitkannya, dan tidak pernah dicetak.
+
+    Hasil: ``dicabut`` | ``diabaikan`` (server tidak mencabut: bukan milik akun
+    yang sama, sudah dicabut, atau tidak dikenal) | ``tidak-didukung`` (server
+    belum punya rutenya) | ``lain-server`` | ``tak-terjangkau``.
+    """
+    if lama.control_plane_url.rstrip("/") != config.control_plane_url.rstrip("/"):
+        return "lain-server"
+    klien = (buat_klien or ControlPlaneClient)(config.control_plane_url, timeout=_BATAS_CABUT_DIRI)
+    try:
+        dicabut = klien.supersede(
+            device_id=baru.device_id, credential=baru.credential,
+            old_device_id=lama.device_id, old_credential=lama.credential)
+    except HttpError as exc:
+        return "tidak-didukung" if exc.status in (404, 405) else "tak-terjangkau"
+    except (AgentError, OSError):
+        return "tak-terjangkau"
+    return "dicabut" if dicabut else "diabaikan"
+
+
+def _cmd_adopt(config: AgentConfig, *, replace: bool = False, masukan=None,
+               buat_klien=None) -> int:
     """Simpan kredensial perangkat hasil masuk aplikasi (ADR-072 §6).
 
     Aplikasi DSWorkbench (IDE) memperoleh ``device.id`` + ``credential`` dari
@@ -209,6 +236,13 @@ def _cmd_adopt(config: AgentConfig, *, replace: bool = False, masukan=None) -> i
     ``device.json`` berizin 0600 di direktori keadaan.
 
     Kredensialnya tidak pernah dicetak, juga saat gagal.
+
+    ``revokeReplaced: true`` di masukan (hanya berarti bersama ``--replace``):
+    setelah kredensial baru tersimpan, server diminta mencabut perangkat lama
+    yang digantikan, dibuktikan dengan kredensial lama itu sendiri
+    (:func:`_cabut_pendahulu`). Hasilnya dicetak sebagai baris kedua stdout,
+    ``perangkat-lama: <hasil> <id>``. Agent lama mengabaikan kunci itu dan
+    tidak mencetak barisnya.
     """
     sumber = masukan if masukan is not None else sys.stdin
     mentah = sumber.read(_BATAS_ADOPT + 1)
@@ -237,6 +271,7 @@ def _cmd_adopt(config: AgentConfig, *, replace: bool = False, masukan=None) -> i
         return 1
 
     store = StateStore(config.resolved_state_dir())
+    lama: DeviceState | None = None
     if store.exists():
         try:
             lama = store.load()
@@ -279,6 +314,12 @@ def _cmd_adopt(config: AgentConfig, *, replace: bool = False, masukan=None) -> i
     )
     store.save(state)
     print(f"terpasang: {state.device_id} ({state.name})")
+    # Hanya di jalur --replace: di situ sudah dipastikan tidak ada agent yang
+    # masih berjalan dengan kredensial lama.
+    if (replace and data.get("revokeReplaced") is True and lama is not None
+            and lama.device_id != state.device_id):
+        hasil = _cabut_pendahulu(config, lama, state, buat_klien=buat_klien)
+        print(f"perangkat-lama: {hasil} {lama.device_id}")
     return 0
 
 

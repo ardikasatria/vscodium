@@ -1,0 +1,53 @@
+Suara panel DSWorkbench (media/suara/)
+======================================
+
+Berkas di folder ini disalin APA ADANYA dari apps/web/public/audio/companion/ saat
+membangun (scripts/lib/aset-web.mjs); tidak di-commit di folder ekstensi. Semuanya MP3
+mono 96 kbps hasil olahan scripts/companion/build-sfx.mjs (dipangkas, dinormalisasi,
+fade-out) dari berkas master di folder pemilik `animation/audio/` (di luar repo).
+
+Berkas -> master (menurut scripts/companion/sfx-sources.json dan docs/companion/audio.md):
+
+  click.mp3     <- Diklik/Click UI Futuristic.wav
+  open.mp3      <- muncul/Hologram Button.wav
+  close.mp3     <- muncul/Hit Digital.wav
+  thinking.mp3  <- Thinking/ai-thinking-2026-05-18-07-58-48-utc/AI Thinking 03.wav (1,8 dtk pertama)
+  response.mp3  <- AI selesai/positive-notification/positive-notification.wav (1,6 dtk pertama)
+  error.mp3     <- Error mahasiswa/Digital UI Alarm Warning - OhmLab/OhmLab_Digital-UI-Alarm-Warning.wav (-9 dB)
+  xp.mp3        <- Notifikasi/friendly-pop-up-notification-2026-05-18-17-45-25-utc/Friendly Pop Up Notification 1.wav (1,2 dtk pertama, -5 dB)
+
+Peristiwa -> berkas (src/suara/daftar.ts, src/suara/peta.ts):
+
+  klik      click.mp3     tombol/pilihan di panel Bravais, Sosial, Beranda, Naskah
+  buka      open.mp3      Bravais: membuka riwayat percakapan
+  tutup     close.mp3     Bravais: menutup riwayat percakapan
+  berpikir  thinking.mp3  Bravais mulai memproses pertanyaan
+  jawaban   response.mp3  jawaban Bravais tiba
+  galat     error.mp3     jawaban Bravais berupa galat
+  notif     xp.mp3        Sosial: pesan atau colekan masuk (panel tampak, jendela fokus)
+
+Web Sosial memakai social-presence/notify.mp3 dan social-presence/click.wav. Keduanya
+salinan mentah (byte demi byte) berkas master "Friendly Pop Up Notification 1.mp3" dan
+"Click UI Futuristic.wav", jadi TIDAK dibawa; xp.mp3 dan click.mp3 adalah turunan
+olahan dari master yang sama.
+
+LISENSI: BELUM DIPASTIKAN
+-------------------------
+Yang tercatat di repo: docs/companion/audio.md dan scripts/companion/sfx-sources.json
+menyebut seluruh master sebagai "Envato Elements" (aset stok berbayar) dan menyatakan
+berkas sumber tidak boleh didistribusikan terpisah dari produk. apps/web/ATTRIBUTION.md
+tidak menyebut berkas suara.
+
+Yang TIDAK diketahui dan tidak ada buktinya di repo:
+  - akun/langganan Envato Elements yang mengunduh tiap butir dan apakah tiap butir
+    sudah didaftarkan (lisensi per proyek) untuk produk ini;
+  - nama butir dan penulis di Envato untuk tiap berkas (hanya nama berkas yang ada;
+    "OhmLab" pada error.mp3 tampak sebagai nama penulis);
+  - apakah lisensinya mengizinkan turunan olahan ini ikut dalam paket .vsix dan aplikasi
+    yang diunduh publik dari rilis GitHub, tempat berkasnya dapat diekstrak;
+  - apakah masih berlaku bila langganan berakhir.
+
+Semua berkas di folder ini berasal dari aset stok tersebut; tidak satu pun buatan
+sendiri atau berlisensi terbuka. Pastikan izinnya sebelum rilis publik. Untuk rilis
+tanpa suara stok: kosongkan BERKAS_SUARA di scripts/lib/aset-web.mjs (panel tetap
+berjalan, hanya senyap) atau ganti berkasnya dengan suara berlisensi jelas.

@@ -196,6 +196,23 @@ class ControlPlaneClient:
             expect_body=False,
         )
 
+    def supersede(self, *, device_id: str, credential: str,
+                  old_device_id: str, old_credential: str) -> bool:
+        """Minta server mencabut perangkat **lama** yang digantikan perangkat ini.
+
+        Buktinya dua kredensial: perangkat ini (yang baru) dan perangkat lama.
+        Server hanya mencabut bila keduanya milik pengguna yang sama; selain itu
+        ia menjawab ``replaced: false`` tanpa alasan. ``True`` bila dicabut.
+        """
+        hasil = self._request(
+            "POST", "api/agent/supersede",
+            body={
+                "deviceId": device_id, "credential": credential,
+                "replaces": {"deviceId": old_device_id, "credential": old_credential},
+            },
+        )
+        return hasil.get("replaced") is True
+
     def poll(
         self, *, device_id: str, credential: str, busy: bool = False, wait: float = 0.0
     ) -> dict[str, Any]:

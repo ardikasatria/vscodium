@@ -2,7 +2,7 @@
   "name": "dsworkbench",
   "displayName": "DSWorkbench",
   "description": "Kelas, naskah modul, notebook, tugas, checkpoint, SQL, terminal praktikum, dan asisten belajar Bravais untuk Sains Data ITERA, dijalankan di komputer Anda lewat Local Runner.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "sditera",
   "private": true,
   "license": "UNLICENSED",
@@ -96,6 +96,20 @@
           "default": "stabil",
           "scope": "application",
           "markdownDescription": "Kanal pembaruan DSWorkbench."
+        },
+        "dsworkbench.sound.enabled": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "markdownDescription": "Bunyikan suara pendek khas Workbench di panel DSWorkbench: klik tombol, Bravais mulai berpikir dan selesai menjawab, serta pesan atau colekan masuk di panel Sosial. Suara hanya berbunyi di panel yang sedang terlihat. Di komputer ber-mode-lab suara mati kecuali pengaturan ini Anda nyalakan sendiri."
+        },
+        "dsworkbench.sound.volume": {
+          "type": "number",
+          "default": 0.35,
+          "minimum": 0,
+          "maximum": 1,
+          "scope": "window",
+          "markdownDescription": "Volume suara panel DSWorkbench, dari `0` (senyap) sampai `1`."
         },
         "dsworkbench.social.notifications": {
           "type": "boolean",

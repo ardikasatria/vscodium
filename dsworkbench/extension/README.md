@@ -1,7 +1,7 @@
 # DSWorkbench — ekstensi siap tanam
 
-Hasil bangun `apps/ide/extension` (ekstensi `sditera.dsworkbench` 0.1.1).
-Local Runner bawaan: 0.4.10 @ e4c7483.
+Hasil bangun `apps/ide/extension` (ekstensi `sditera.dsworkbench` 0.1.2).
+Local Runner bawaan: 0.4.10 @ 68b7589.
 
 ## Menanam ke aplikasi bermerek (fork skrip VSCodium)
 
@@ -29,9 +29,9 @@ Local Runner bawaan: 0.4.10 @ e4c7483.
 |---|---|
 | `package.json` | manifest ekstensi (perintah, pengaturan, tema, view) |
 | `dist/extension.js` | kode ekstensi, satu berkas |
-| `media/` | ikon bilah aktivitas; skrip panel (`panel/`); KaTeX (`katex/`, MIT, huruf OFL); pemutar Lottie (`lottie/`, MIT); karakter Bravais (`bravais/`) |
+| `media/` | ikon bilah aktivitas; skrip panel (`panel/`); KaTeX (`katex/`, MIT, huruf OFL); pemutar Lottie (`lottie/`, MIT); karakter Bravais (`bravais/`); suara panel (`suara/`, turunan aset stok, lisensi belum dipastikan: lihat `suara/CATATAN.txt`) |
 | `themes/` | `DSWorkbench Gelap` dan `DSWorkbench Terang` |
 | `agent-payload/` | sumber Local Runner + `MANIFEST.json` (versi, commit, sha256 tiap berkas) |
 
-Memasang sebagai ekstensi biasa: pakai `dsworkbench-0.1.1.vsix` di folder induk
+Memasang sebagai ekstensi biasa: pakai `dsworkbench-0.1.2.vsix` di folder induk
 (`code --install-extension …` atau *Extensions: Install from VSIX*).

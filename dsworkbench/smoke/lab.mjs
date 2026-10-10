@@ -36,6 +36,8 @@ const FIXTURE_AGENT = process.env.DSW_FIXTURE_AGENT ? path.resolve(process.env.D
 const COURSE = 'data-wrangling';
 const USERNAME = '122450001';
 const RAHASIA_LAMA = 'kredensial-perangkat-lama-0123456789';
+// Pasangan dari aplikasi DSWorkbench lama (pairing dengan kode) yang diambil alih saat masuk.
+const RAHASIA_PAIRING = 'kredensial-pairing-aplikasi-lama-0123456789';
 
 if (!fs.existsSync(KODE) && KODE !== 'code') {
 	console.error(`VS Code tidak ditemukan di ${KODE}. Setel DSW_VSCODE.`);
@@ -88,7 +90,13 @@ const perintahAgent = [PYTHON, FIXTURE_AGENT, ws, catatanAgent, pemicu];
 
 // --- server palsu (Control API): masuk aplikasi, pencabutan, relay -------------------
 const permintaan = [];
-const perangkat = new Map([['dev-lama', { credential: RAHASIA_LAMA, dicabut: false }]]);
+const perangkat = new Map([
+	['dev-lama', { credential: RAHASIA_LAMA, dicabut: false }],
+	['dev-pairing-1', { credential: RAHASIA_PAIRING, dicabut: false }],
+	['dev-pairing-2', { credential: RAHASIA_PAIRING, dicabut: false }],
+]);
+// `false` = server lama yang belum punya `POST /api/agent/supersede` (dijawab 404 seperti rute tak dikenal).
+let dukungGantikan = true;
 const token = new Map();
 const masuk = []; // { requestId, token, deviceId, lab }
 const relayHasil = new Map();
@@ -130,6 +138,16 @@ const server = http.createServer((req, res) => {
 			for (const t of token.values()) if (t.deviceId === badan.deviceId) t.berlaku = false;
 			return jawab(204);
 		}
+		if (k === 'POST /api/agent/supersede' && dukungGantikan) {
+			// Seperti server asli: pemanggil = perangkat BARU; perangkat lama hanya dicabut bila
+			// kredensialnya cocok (server palsu ini hanya punya satu pengguna).
+			const baru = perangkat.get(badan?.deviceId);
+			if (!baru || baru.dicabut || baru.credential !== badan?.credential) return jawab(401, { error: 'autentikasi_gagal', message: 'x' });
+			const lama = perangkat.get(badan?.replaces?.deviceId);
+			const cocok = !!lama && lama !== baru && !lama.dicabut && lama.credential === badan.replaces.credential;
+			if (cocok) lama.dicabut = true;
+			return jawab(200, { replaced: cocok });
+		}
 		const t = otorisasi?.startsWith('Bearer ') ? token.get(otorisasi.slice(7)) : undefined;
 		if (!t || !t.berlaku) return jawab(401, { error: 'autentikasi_gagal', message: 'Autentikasi gagal.' });
 		if (k === 'POST /api/app/logout') {
@@ -140,6 +158,9 @@ const server = http.createServer((req, res) => {
 		}
 		if (k === 'GET /api/auth/me') return jawab(200, { user: { id: 'u-uji', username: USERNAME }, session: { kind: 'app', lab: true } });
 		if (k === 'GET /api/me/kelas') return jawab(200, { kelas: [] });
+		if (k === 'GET /api/devices') {
+			return jawab(200, { devices: [...perangkat].map(([id, d]) => ({ id, name: id, state: d.dicabut ? 'revoked' : 'offline', revokedAt: d.dicabut ? new Date().toISOString() : null })) });
+		}
 		if (k === 'GET /api/catalog/courses') return jawab(200, { courses: [] });
 		if (k === 'GET /api/me/tasks') return jawab(200, { tasks: [] });
 		if (k === 'GET /api/me/announcements') return jawab(200, { announcements: [] });
@@ -324,7 +345,19 @@ try {
 	console.log(`VS Code: ${KODE}\nekstensi dari: ${akarMuat}\nagent dari: ${pakaiPayload ? 'agent-payload ekstensi' : 'sumber repo'}\nprofil sementara: ${tmp}\nserver palsu: ${SERVER}`);
 	const sudahMasuk = (i) => () => masuk.length === i + 1 && dari('/api/me/kelas', `Bearer ${masuk[i].token}`).length >= 1 && adaDevice();
 
+	/** Komputer ini masih menyimpan pasangan aplikasi lama (`device.json` hasil pairing, akun yang sama). */
+	const pasangLama = (deviceId) => {
+		const r = spawnSync(PYTHON, [FIXTURE_AGENT, ws, catatanAgent, pemicu, '--state-dir', stateDir, '--url', SERVER, 'adopt'], {
+			input: JSON.stringify({ deviceId, credential: RAHASIA_PAIRING, name: 'Laptop lama', os: os.type(), arch: os.arch(), account: USERNAME }),
+			env: { ...process.env, ...envAgent },
+			encoding: 'utf8',
+		});
+		assert.equal(r.status, 0, `adopt gagal: ${r.stderr}`);
+	};
+	const idDevice = () => JSON.parse(fs.readFileSync(path.join(stateDir, 'device.json'), 'utf8')).device_id;
+
 	// === Bagian 1: peluncuran biasa, penyimpanan aplikasi sungguhan ===========================
+	pasangLama('dev-pairing-1');
 	const b1 = await tahap('biasa-1', { lab: false, folder: false, biasa: true, aksi: 'masuk', siap: sudahMasuk(0) });
 	const tA = masuk[0];
 	periksa('tanpa mode-lab.json (laptop pribadi): masuk tidak meminta sesi lab, pengaturan pengguna tidak diubah, dan menutup aplikasi tidak mencabut apa pun', () => {
@@ -337,6 +370,17 @@ try {
 		assert.equal(dari('/api/agent/self-revoke').length, 0);
 		assert.equal(adaDevice(), true);
 		assert.equal(penjaga().length, 0, 'tidak ada penjaga sesi di luar mode lab');
+	});
+	periksa('ambil alih pasangan aplikasi lama (akun yang sama): setelah perangkat baru terbit dan tersimpan, Local Runner mencabut perangkat lama di server dengan kredensial lama itu; pengingat "cabut di web" tidak diperlukan', () => {
+		const ganti = dari('/api/agent/supersede');
+		assert.equal(ganti.length, 1);
+		assert.deepEqual(ganti[0].badan, { deviceId: tA.deviceId, credential: perangkat.get(tA.deviceId).credential, replaces: { deviceId: 'dev-pairing-1', credential: RAHASIA_PAIRING } });
+		assert.equal(ganti[0].otorisasi, undefined, 'tanpa token pengguna');
+		assert.ok(permintaan.indexOf(ganti[0]) > permintaan.indexOf(dari('/api/app/login/poll').at(-1)), 'pencabutan setelah perangkat baru terbit');
+		assert.equal(perangkat.get('dev-pairing-1').dicabut, true);
+		assert.equal(perangkat.get(tA.deviceId).dicabut, false);
+		assert.equal(idDevice(), tA.deviceId);
+		assert.equal(dari('/api/devices').length, 0, 'daftar perangkat (pengingat) tidak diperiksa');
 	});
 	const n2 = permintaan.length;
 	const mulai2 = Date.now();
@@ -441,6 +485,9 @@ try {
 		assert.deepEqual(m.statusView, ['lab', 'akun', 'agent', 'lingkungan', 'disk', 'folder']);
 		assert.equal(m.setelahMasuk.keadaan.teksBilah[1], '$(sign-out) Keluar');
 	});
+	periksa('mode lab: suara panel bawaan MATI; menyala hanya bila pengguna menulis dsworkbench.sound.enabled', () => {
+		assert.deepEqual(m.suara, { bawaan: { aktif: false, volume: 0.35 }, eksplisit: { aktif: true, volume: 0.35 }, akhir: { aktif: false, volume: 0.35 } });
+	});
 	periksa('pengaturan pengguna mode lab ditetapkan: jendela tidak dipulihkan, hot exit mati, terminal tidak dihidupkan lagi', () => {
 		assert.deepEqual(awal.pengaturan, { 'window.restoreWindows': 'none', 'files.hotExit': 'off', 'terminal.integrated.enablePersistentSessions': false });
 	});
@@ -540,6 +587,27 @@ try {
 		assert.deepEqual(adaDiDisk(userData, t3.token), []);
 		assert.deepEqual(adaDiDisk(stateDir, t3.token), []);
 		assert.deepEqual(adaDiDisk(tmp, t3.token).filter((f) => !f.startsWith('hasil-')), []);
+	});
+	// --- server lama: belum punya rute pencabutan pendahulu --------------------------------------
+	// Laptop pribadi lagi (tanpa mode-lab.json), dengan pasangan aplikasi lama di komputer ini.
+	dukungGantikan = false;
+	pasangLama('dev-pairing-2');
+	const nLama = permintaan.length;
+	const iLama = masuk.length;
+	await tahap('server-lama', { lab: false, folder: false, biasa: true, aksi: 'masuk', siap: () => sudahMasuk(iLama)() && permintaan.slice(nLama).some((x) => x.jalur === '/api/devices') });
+	const tL = masuk[iLama];
+	periksa('server lama (tanpa /api/agent/supersede): masuk tetap berhasil, perangkat lama tidak tersentuh, dan ekstensi kembali ke pengingat — daftar perangkat diperiksa dengan token aplikasi', () => {
+		assert.ok(tL, 'masuk tidak terjadi');
+		const baru = permintaan.slice(nLama);
+		const ganti = baru.filter((x) => x.jalur === '/api/agent/supersede');
+		assert.equal(ganti.length, 1, 'dicoba sekali, dijawab 404');
+		assert.equal(perangkat.get('dev-pairing-2').dicabut, false);
+		assert.equal(perangkat.get(tL.deviceId).dicabut, false);
+		assert.equal(idDevice(), tL.deviceId);
+		const daftar = baru.filter((x) => x.jalur === '/api/devices');
+		assert.ok(daftar.length >= 1, 'pengingat memeriksa daftar perangkat');
+		assert.equal(daftar[0].otorisasi, `Bearer ${tL.token}`);
+		assert.ok(baru.indexOf(daftar[0]) > baru.indexOf(ganti[0]));
 	});
 	periksa('semua permintaan ber-token memakai bearer tanpa cookie; kredensial perangkat hanya dikirim ke rute agent', () => {
 		for (const x of permintaan) {

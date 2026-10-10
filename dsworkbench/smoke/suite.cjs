@@ -238,6 +238,7 @@ async function run() {
         pesanPanel: s.keadaan().pesanPanel,
         sebelum: { keadaan: awal.keadaan.keadaan, online: awal.keadaan.online, offline: awal.keadaan.offline, lencana: awal.lencana },
         avatarRani: awal.keadaan.online[0]?.avatar.uri,
+        akarSkema: awal.akarSkema,
         buka,
         kirim,
         sesudah: s.keadaan(),
@@ -248,6 +249,23 @@ async function run() {
           await s.pesan({ tindakan: "buka-tautan", id: "smsg-9999", indeks: 0 })
         ]
       };
+    }
+    {
+      const su = api.uji.suara;
+      const c = vscode.workspace.getConfiguration("dsworkbench");
+      const G = vscode.ConfigurationTarget.Global;
+      const awal = su.pengaturan();
+      const terkirim = su.terkirim();
+      await c.update("sound.enabled", false, G);
+      const mati = su.pengaturan();
+      const klikMati = await api.uji.bravais.pesan({ tindakan: "konteks", aktif: true });
+      const terkirimMati = su.terkirim().length - terkirim.length;
+      await c.update("sound.enabled", true, G);
+      await c.update("sound.volume", 0.8, G);
+      const nyala = su.pengaturan();
+      await c.update("sound.enabled", void 0, G);
+      await c.update("sound.volume", void 0, G);
+      hasil["suara"] = { awal, terkirim, mati, klikMati, terkirimMati, nyala, akhir: su.pengaturan(), htmlSosial: api.uji.sosial.keadaan().html };
     }
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
     await tidur(1500);

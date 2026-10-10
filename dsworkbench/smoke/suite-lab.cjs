@@ -60,6 +60,14 @@ async function run() {
     if (!lab) throw new Error("mode lab tidak aktif padahal DSW_LAB_CONFIG diisi");
     await lab.siap();
     hasil["awal"] = { keadaan: lab.keadaan(), tersimpan: await lab.tersimpan() };
+    {
+      const c = vscode.workspace.getConfiguration("dsworkbench");
+      const bawaan = api.uji.suara.pengaturan();
+      await c.update("sound.enabled", true, vscode.ConfigurationTarget.Global);
+      const eksplisit = api.uji.suara.pengaturan();
+      await c.update("sound.enabled", void 0, vscode.ConfigurationTarget.Global);
+      hasil["suara"] = { bawaan, eksplisit, akhir: api.uji.suara.pengaturan() };
+    }
     void vscode.commands.executeCommand("dsworkbench.login");
     await sampai(() => lab.keadaan().masuk, 45e3, "masuk tidak selesai");
     await sampai(() => api.uji.statusAgent().keadaan === "siap", 3e4, "Local Runner tidak siap setelah masuk");
