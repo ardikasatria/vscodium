@@ -106,9 +106,9 @@ jobs:
         shell: bash
     env:
       BUILD_SOURCEVERSION: ${{ needs.compile.outputs.BUILD_SOURCEVERSION }}
-      MS_COMMIT: ${{ needs.check.outputs.MS_COMMIT }}
-      MS_TAG: ${{ needs.check.outputs.MS_TAG }}
-      RELEASE_VERSION: ${{ needs.check.outputs.RELEASE_VERSION }}
+      MS_COMMIT: ${{ needs.compile.outputs.MS_COMMIT }}
+      MS_TAG: ${{ needs.compile.outputs.MS_TAG }}
+      RELEASE_VERSION: ${{ needs.compile.outputs.RELEASE_VERSION }}
       SHOULD_BUILD_MSI: no
       SHOULD_BUILD_MSI_NOUP: no
       SHOULD_BUILD_REH: no
