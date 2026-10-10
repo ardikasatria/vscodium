@@ -220,6 +220,60 @@ async function run() {
     hasil["checkpoint"] = await api.uji.checkpoint(env2["DSW_COURSE"], env2["DSW_MODUL2"], true);
     hasil["kumpul"] = await api.uji.kumpulkan(daftarTugas[0]);
     hasil["sqlTanpaLayanan"] = await api.uji.sql(env2["DSW_COURSE"], "sql.execute", { alias: "dw", database: "nusamart_dw", sql: "select 1", maxRows: 10 });
+    if (api.uji.gudang && env2["DSW_COURSE_PGD"] && env2["DSW_MODUL_PGD"]) {
+      const g = api.uji.gudang;
+      const P = env2["DSW_COURSE_PGD"];
+      const MP = env2["DSW_MODUL_PGD"];
+      const potret = () => {
+        const k = g.keadaan();
+        return { model: k.model, bagian: k.bagian, sibuk: k.sibuk };
+      };
+      const berlayanan = await g.berlayanan();
+      await g.buka(C);
+      const bukanLayanan = g.keadaan().terbuka;
+      const mkPgd = await api.uji.siapkanMataKuliah(P);
+      fs.mkdirSync(path.join(mkPgd.akar, "modul-02"), { recursive: true });
+      fs.writeFileSync(path.join(mkPgd.akar, "modul-02", "01_ddl.sql"), "-- uji panel\nSELECT 1;\n");
+      await g.buka(P, MP);
+      await sampai(() => g.keadaan().pesanPanel >= 1, 2e4, "").catch(() => void 0);
+      await sampai(() => g.keadaan().model?.dataset.jenis === "ada" && g.keadaan().model?.layanan.jenis === "siap", 2e4, "").catch(() => void 0);
+      const tab = vscode.window.tabGroups.all.flatMap((x) => x.tabs).find((t) => t.input instanceof vscode.TabInputWebview && t.input.viewType.includes("dsworkbench.gudang"));
+      const awal = potret();
+      const html = g.keadaan().html;
+      const muatSebelumSiap = await g.pesan({ tindakan: "muat-dataset" });
+      const nyalakan = await g.pesan({ tindakan: "nyalakan" });
+      await sampai(() => g.keadaan().model?.katalog.jenis === "siap", 3e4, "").catch(() => void 0);
+      const menyala = potret();
+      const siapkan = await g.pesan({ tindakan: "siapkan-dataset" });
+      const setelahSiapkan = potret();
+      const muat = await g.pesan({ tindakan: "muat-dataset" });
+      await sampai(() => (g.keadaan().bagian?.["b-layanan"] ?? "").includes("12.345 baris") && g.keadaan().model?.katalog.jenis === "siap", 2e4, "").catch(() => void 0);
+      const setelahMuat = potret();
+      const hasilSkema = await g.pesan({ tindakan: "pilih-skema", indeks: 1 });
+      const dSkema = g.keadaan().model?.er.diagram;
+      const pilihSkema = { hasil: hasilSkema, kotak: dSkema?.kotak.length, luar: dSkema?.kotak.filter((k) => k.luar).map((k) => k.label), garis: dSkema?.garis.length };
+      const hasilSaring = await g.pesan({ tindakan: "saring-er", teks: "dim_produk" });
+      const saring = { hasil: hasilSaring, nama: g.keadaan().model?.er.diagram?.kotak.map((k) => k.nama) };
+      const hasilBuka = await g.pesan({ tindakan: "buka-berkas", indeks: 0 });
+      const bukaBerkas = { hasil: hasilBuka, aktif: vscode.window.activeTextEditor?.document.uri.fsPath };
+      const bukaBerkasBelumAda = await g.pesan({ tindakan: "buka-berkas", indeks: 1 });
+      const ditolak = [
+        await g.pesan({ tindakan: "jalankan", perintah: "workbench.action.terminal.new" }),
+        await g.pesan({ tindakan: "hentikan", courseId: "lain" }),
+        await g.pesan({ tindakan: "siapkan-dataset", moduleId: "module-99" }),
+        await g.pesan({ tindakan: "muat-dataset", job: true }),
+        await g.pesan({ tindakan: "buka-berkas", indeks: 0, path: "/etc/passwd" }),
+        await g.pesan({ tindakan: "buka-berkas", indeks: 99 }),
+        await g.pesan({ tindakan: "pratinjau", indeks: 0, sql: "drop table x" }),
+        await g.pesan({ tindakan: "pratinjau", indeks: 999 }),
+        await g.pesan({ tindakan: "buka-web", indeks: 0, url: "https://jahat.example" }),
+        await g.pesan({ tindakan: "pilih-modul", indeks: 7 }),
+        await g.pesan("nyalakan")
+      ];
+      const hasilModul = await g.pesan({ tindakan: "pilih-modul", indeks: 1 });
+      const modulTerkunci = { hasil: hasilModul, kerja: g.keadaan().bagian?.["b-kerja"] ?? "", dataset: g.keadaan().bagian?.["b-dataset"] ?? "" };
+      hasil["gudang"] = { berlayanan, bukanLayanan, tab: tab?.label, pesanPanel: g.keadaan().pesanPanel, siapPanel: g.keadaan().siapPanel, html, awal, muatSebelumSiap, nyalakan, menyala, siapkan, setelahSiapkan, muat, setelahMuat, pilihSkema, saring, bukaBerkas, bukaBerkasBelumAda, ditolak, modulTerkunci };
+    }
     {
       const s = api.uji.sosial;
       await s.fokus();

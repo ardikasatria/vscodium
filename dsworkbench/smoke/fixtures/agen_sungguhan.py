@@ -2,10 +2,12 @@
 
 Pola `agent/local-runner/tests/_agen_stdio.py`: jalur CLI-nya asli (`cli.main`
 → `_cmd_run` → `amankan_kanal` → `_layani_stdio` → `PipaIde` → allowlist →
-kernel proses anak). Yang diganti hanya tiga hal yang tidak ada di mesin uji:
+kernel proses anak). Yang diganti hanya hal-hal yang tidak ada di mesin uji:
 
 - perpindahan ke interpreter praktikum (`_pastikan_interpreter`);
 - allowlist bawaan → kernel proses anak ber-`sys.executable` + workspace uji;
+- `db.catalog` (hanya bila `DSW_KATALOG_PALSU` disetel) → katalog dari berkas contoh,
+  karena mesin uji tidak punya PostgreSQL; gerbang pipa di depannya tetap asli;
 - klien HTTP ke server → server kontrol palsu di memori. Ia meneruskan amplop
   sesi yang ditaruh server HTTP palsu (`run-integration.mjs`) di folder pemicu,
   persis seperti relay: ekstensi meminta amplop lewat HTTP, agent menerimanya
@@ -101,7 +103,35 @@ def main() -> int:
         router = ProfileKernelRouter(
             LocalPythonBackend(cwd=dasar), akar=akar_agent, workspace_root=dasar,
             penyedia_python=lambda _pid: Path(sys.executable))
-        return OperationAllowlist(jupyter=router, workspace=WorkspaceFiles(PathResolver(dasar)))
+        daftar = OperationAllowlist(jupyter=router, workspace=WorkspaceFiles(PathResolver(dasar)))
+        katalog = os.environ.get("DSW_KATALOG_PALSU")
+        if not katalog:
+            return daftar
+
+        # Mesin uji tidak punya PostgreSQL: `db.catalog` dijawab dari berkas contoh. Jalur di
+        # depannya tetap asli (pipa → kelas A → amplop → blok `services` amplop wajib ada),
+        # jadi mata kuliah tanpa layanan di amplop tetap ditolak sebelum sampai ke sini.
+        from workbench_agent.operations import HandlerResult, KnownOperation
+
+        def katalog_palsu(payload):
+            data = json.loads(Path(katalog).read_text(encoding="utf-8"))
+            return HandlerResult(status="ok", payload={
+                "alias": payload.get("alias"), "database": payload.get("database"),
+                "adaServices": isinstance(payload.get("services"), dict), **data})
+
+        class DaftarUji(OperationAllowlist):
+            def implements(self, operation):
+                return operation is KnownOperation.DB_CATALOG or super().implements(operation)
+
+            def ikat_layanan(self, **kw):
+                # Pengikatan asli memasang `db.catalog` sungguhan (butuh PostgreSQL terpasang);
+                # katalog contoh dipasang kembali sesudahnya.
+                super().ikat_layanan(**kw)
+                self.register(KnownOperation.DB_CATALOG, katalog_palsu)
+
+        daftar.__class__ = DaftarUji
+        daftar.register(KnownOperation.DB_CATALOG, katalog_palsu)
+        return daftar
 
     server = ServerKontrolPalsu(Path(catatan), Path(pemicu))
     with mock.patch.object(cli, "_pastikan_interpreter", lambda *a, **k: None), \

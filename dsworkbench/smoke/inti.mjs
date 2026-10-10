@@ -98,6 +98,44 @@ const luarDir = dir('luar');
 const nbLuar = path.join(luarDir, 'di-luar.ipynb');
 fs.writeFileSync(nbLuar, JSON.stringify({ ...notebook, cells: [sel('1 + 1')] }, null, 1));
 
+// Panel "Pergudangan Data": mata kuliah kedua yang modulnya butuh basis data praktikum.
+// Amplopnya memuat `services`; layanan dan dataset dijawab "relay" server palsu, katalog
+// dijawab agent (fixture) dari berkas contoh ini karena mesin uji tidak punya PostgreSQL.
+const COURSE_PGD = 'pergudangan-data';
+const MODUL_PGD = 'module-02';
+const KOLOM_ANEH = '<img src=x onerror="alert(1)">';
+const kolomPgd = (name, type = 'integer') => ({ name, type, nullable: false, comment: null });
+const KATALOG_PGD = {
+	port: 5434,
+	truncated: false,
+	schemas: [
+		{
+			name: 'dw',
+			tables: [
+				{ name: 'dim_pelanggan', kind: 'table', rowsEstimate: 500, partitions: 0, columns: [kolomPgd('pelanggan_sk'), kolomPgd(KOLOM_ANEH, 'text')], primaryKey: ['pelanggan_sk'], foreignKeys: [] },
+				{ name: 'dim_produk', kind: 'table', rowsEstimate: 80, partitions: 0, columns: [kolomPgd('produk_sk'), kolomPgd('nama_produk', 'text')], primaryKey: ['produk_sk'], foreignKeys: [] },
+				{
+					name: 'fakta_penjualan', kind: 'table', rowsEstimate: 12000, partitions: 0,
+					columns: [kolomPgd('penjualan_sk', 'bigint'), kolomPgd('pelanggan_sk'), kolomPgd('produk_sk'), kolomPgd('order_id'), kolomPgd('jumlah', 'numeric(12,2)')],
+					primaryKey: ['penjualan_sk'],
+					foreignKeys: [
+						{ name: 'fk_pelanggan', columns: ['pelanggan_sk'], refSchema: 'dw', refTable: 'dim_pelanggan', refColumns: ['pelanggan_sk'] },
+						{ name: 'fk_produk', columns: ['produk_sk'], refSchema: 'dw', refTable: 'dim_produk', refColumns: ['produk_sk'] },
+						{ name: 'fk_order', columns: ['order_id'], refSchema: 'staging', refTable: 'orders', refColumns: ['order_id'] },
+					],
+				},
+				{ name: 'log_muat', kind: 'table', rowsEstimate: 3, partitions: 0, columns: [kolomPgd('id')], primaryKey: ['id'], foreignKeys: [] },
+			],
+		},
+		{ name: 'staging', tables: [{ name: 'orders', kind: 'table', rowsEstimate: 9000, partitions: 0, columns: [kolomPgd('order_id'), kolomPgd('tanggal', 'date')], primaryKey: ['order_id'], foreignKeys: [] }] },
+	],
+};
+const katalogPgd = path.join(tmp, 'katalog.json');
+fs.writeFileSync(katalogPgd, JSON.stringify(KATALOG_PGD));
+const SERVICES_PGD = { postgres: { version: '17', clusters: [{ alias: 'source', port: 5433, databases: ['nusamart_oltp'], studentAccess: 'read' }, { alias: 'dw', port: 5434, databases: ['nusamart_dw'], studentAccess: 'owner' }] } };
+// Keadaan "laptop" menurut relay palsu: basis data mati, dataset belum ada, data belum dimuat.
+const pgd = { menyala: false, dataset: false, dimuat: false, job: new Map() };
+
 // Fase 3: modul kedua untuk "Siapkan berkas modul", checkpoint, dan pengumpulan.
 const MODUL2 = 'm02-lanjut';
 const NAMA_STARTER2 = `M02_${USERNAME}.ipynb`;
@@ -216,7 +254,7 @@ if (pakaiPayload) {
 		process.exit(2);
 	}
 }
-const envAgent = { PYTHONPATH: pypath.join(path.delimiter), PYTHONDONTWRITEBYTECODE: '1' };
+const envAgent = { PYTHONPATH: pypath.join(path.delimiter), PYTHONDONTWRITEBYTECODE: '1', DSW_KATALOG_PALSU: katalogPgd };
 const harness = FIXTURE_AGENT;
 const perintahAgent = [PYTHON, harness, ws, catatanAgent, pemicu];
 
@@ -254,6 +292,8 @@ const server = http.createServer((req, res) => {
 				envelopeId: `env-${permintaan.length}`,
 				courseId: badan.courseId,
 				workspace: { layout: 'per-course', courseId: badan.courseId },
+				// Hanya mata kuliah berbasis data yang amplopnya memuat `services` (seperti server sungguhan).
+				...(badan.courseId === COURSE_PGD ? { services: SERVICES_PGD } : {}),
 				ops: OPS,
 				issuedAt: kini.toISOString(),
 				expiresAt: new Date(kini.getTime() + 3600_000).toISOString(),
@@ -274,6 +314,15 @@ const server = http.createServer((req, res) => {
 					modules: [
 						{ id: 'm01-pengantar', order: 1, runtimeProfile: 'python-data-science', starterFiles: ['M01_starter.ipynb'] },
 						{ id: MODUL2, order: 2, runtimeProfile: 'python-data-science', starterFiles: ['notebooks/M02_starter.ipynb'] },
+					],
+				}, {
+					id: COURSE_PGD,
+					name: 'Pergudangan Data',
+					workspaceLayout: 'per-course',
+					modules: [
+						{ id: 'module-00', name: 'Pengantar', order: 0, capabilities: [] },
+						{ id: MODUL_PGD, name: 'Skema Bintang', order: 2, capabilities: ['postgres'] },
+						{ id: 'module-03', name: 'ETL', order: 3, capabilities: ['postgres'] },
 					],
 				}],
 			});
@@ -362,6 +411,56 @@ const server = http.createServer((req, res) => {
 		if (kunci === 'GET /api/me/integrations/github/submit-gate?assignmentId=a-m02') {
 			// Gerbang berlaku; baru terpenuhi setelah `git.status` datang LEWAT RELAY.
 			return jawab(200, { assignmentId: 'a-m02', courseId: COURSE, applies: true, exempt: false, ok: gitDiperiksa, reason: gitDiperiksa ? null : 'no_proof', message: gitDiperiksa ? null : 'Push ke GitHub dulu.', proof: null });
+		}
+		if (kunci === `GET /api/courses/${COURSE_PGD}/modules/${MODUL_PGD}`) {
+			return jawab(200, {
+				id: MODUL_PGD, name: 'Skema Bintang', order: 2, course: { id: COURSE_PGD, version: '2026.3' }, workFolder: 'modul-02', localDataset: true,
+				files: [{ name: '01_ddl.sql', path: 'sql/01_ddl.sql', kind: 'SQL', label: '01_ddl.sql', description: '', workPath: 'modul-02/01_ddl.sql' }, { name: '02_muat.sql', path: 'sql/02_muat.sql', kind: 'SQL', label: '02_muat.sql', description: '', workPath: 'modul-02/02_muat.sql' }],
+			});
+		}
+		// Modul lain mata kuliah itu belum dibuka pengampu: pesan server tampil apa adanya di panel.
+		if (kunci === `GET /api/courses/${COURSE_PGD}/modules/module-03`) return jawab(403, { error: 'tidak_berhak', message: 'Materi modul ini belum dibuka.' });
+		let mj;
+		if ((mj = /^GET \/api\/relay\/jobs\/(job-pgd-\d+)\?since=(\d+)$/.exec(kunci)) && pgd.job.has(mj[1])) {
+			const j = pgd.job.get(mj[1]);
+			j.tagihan += 1;
+			const log = j.op === 'dataset.materialize' ? 'Mengunduh nusamart-oltp 2026.1 …\nSelesai: 9 berkas di data/raw/.\n' : 'Memeriksa berkas dataset (SHA-256) …\nCOPY pelanggan\n';
+			const since = Number(mj[2]);
+			if (j.tagihan < 2) return jawab(200, { jobId: mj[1], state: 'running', elapsedMs: 800, output: [{ type: 'stream', name: 'stdout', text: log.slice(since, 20) }], nextSince: 20, result: null, reason: null, detail: null });
+			if (j.op === 'dataset.materialize') pgd.dataset = true;
+			else pgd.dimuat = true;
+			return jawab(200, { jobId: mj[1], state: 'succeeded', elapsedMs: 1900, output: [{ type: 'stream', name: 'stdout', text: log.slice(since) }], nextSince: log.length, result: j.op === 'dataset.materialize' ? { filesWritten: 9 } : { alias: 'source', tables: 7, rows: 12345 }, reason: null, detail: null });
+		}
+		if (kunci === 'POST /api/relay/dispatch' && badan?.payload?.courseId === COURSE_PGD) {
+			// Relay "kelas B" untuk panel Pergudangan Data (bentuk jawaban seperti agent: pgservice.status, datasets_op.verify).
+			const messageId = `rly-${relayHasil.size + 1}`;
+			const op = badan.operation;
+			let result = { status: 'rejected', payload: {}, detail: 'operasi tidak dikenal uji' };
+			let jobId;
+			const status = () => ({
+				service: 'postgres', version: '17', installed: true,
+				clusters: [
+					{ alias: 'source', port: 5433, initialized: true, state: pgd.menyala ? 'running' : 'stopped', access: 'read', databases: [{ name: 'nusamart_oltp', ...(pgd.dimuat ? { loaded: { dataset: 'nusamart-oltp', version: '2026.1', rows: 12345, loadedAt: '2026-10-10T00:00:00+00:00' } } : {}) }] },
+					{ alias: 'dw', port: 5434, initialized: true, state: pgd.menyala ? 'running' : 'stopped', access: 'owner', databases: [{ name: 'nusamart_dw' }] },
+				],
+			});
+			if (op === 'service.status') result = { status: 'ok', payload: status(), detail: null };
+			else if (op === 'service.start' || op === 'service.stop') {
+				pgd.menyala = op === 'service.start';
+				result = { status: 'ok', payload: { ...status(), terminal: '.workbench/shell/terminal.sh' }, detail: null };
+			} else if (op === 'dataset.verify') {
+				if (badan.payload.moduleId !== MODUL_PGD) return jawab(404, { error: 'tidak_ditemukan', message: 'Modul ini tidak memakai dataset.' });
+				result = { status: 'ok', payload: { ref: 'nusamart-oltp', version: '2026.1', mount: 'data/raw', present: pgd.dataset ? 9 : 0, total: 9, ready: pgd.dataset }, detail: null };
+			} else if ((op === 'dataset.materialize' || op === 'service.postgres.load') && badan.payload.job === true) {
+				if (op === 'service.postgres.load' && !pgd.dataset) result = { status: 'failed', payload: { code: 'dataset_missing' }, detail: 'Dataset belum lengkap atau berubah di laptop.' };
+				else {
+					jobId = `job-pgd-${pgd.job.size + 1}`;
+					pgd.job.set(jobId, { op, tagihan: 0 });
+					result = { status: 'ok', payload: { jobId, state: 'queued' }, detail: null };
+				}
+			}
+			relayHasil.set(messageId, result);
+			return jawab(202, { messageId, operation: op, queueDepth: 0, ...(jobId ? { jobId, timeoutSeconds: 120 } : {}) });
 		}
 		if (kunci === 'POST /api/relay/dispatch') {
 			const messageId = `rly-${relayHasil.size + 1}`;
@@ -460,7 +559,7 @@ try {
 	const keluar = await new Promise((selesai) => {
 		const anak = spawn(KODE, argumen, {
 			stdio: ['ignore', 'pipe', 'pipe'],
-			env: { ...process.env, DSW_DATA_ROOT: folderRuntime, DSW_OUT: out, DSW_SERVER: SERVER, DSW_TOKEN: TOKEN, DSW_USERNAME: USERNAME, DSW_COURSE: COURSE, DSW_WS_COURSE: wsCourse, DSW_NOTEBOOK: NAMA_NB, DSW_NOTEBOOK2: NAMA_NB2, DSW_NOTEBOOK_LUAR: nbLuar, DSW_MODUL2: MODUL2, DSW_UJI_VSIX: vsixUji },
+			env: { ...process.env, DSW_DATA_ROOT: folderRuntime, DSW_OUT: out, DSW_SERVER: SERVER, DSW_TOKEN: TOKEN, DSW_USERNAME: USERNAME, DSW_COURSE: COURSE, DSW_WS_COURSE: wsCourse, DSW_NOTEBOOK: NAMA_NB, DSW_NOTEBOOK2: NAMA_NB2, DSW_NOTEBOOK_LUAR: nbLuar, DSW_MODUL2: MODUL2, DSW_UJI_VSIX: vsixUji, DSW_COURSE_PGD: COURSE_PGD, DSW_MODUL_PGD: MODUL_PGD },
 		});
 		let log = '';
 		anak.stdout.on('data', (d) => (log += d));
@@ -678,7 +777,8 @@ try {
 		assert.deepEqual(lampiran, [{ name: 'M02_NIM.ipynb', objectId: 'obj-1' }, { name: 'catatan.md', objectId: 'obj-2' }]);
 		assert.deepEqual(kirim[1], { deviceId: 'dev-uji', operation: 'git.status', payload: { courseId: COURSE } });
 		const urut = permintaan.map((x) => `${x.metode} ${x.jalur}`);
-		const iGit = urut.lastIndexOf('POST /api/relay/dispatch');
+		// Dispatch `git.status` itu sendiri (panel Pergudangan Data mengirim dispatch lain sesudahnya).
+		const iGit = permintaan.findIndex((x) => x.jalur === '/api/relay/dispatch' && x.badan?.operation === 'git.status');
 		const iSubmit = urut.indexOf('POST /api/attempts/att-uji/submit');
 		assert.ok(iGit > 0 && iSubmit > iGit, 'git.status lewat relay mendahului submit');
 		assert.equal(urut.filter((u) => u === 'POST /api/attempts/att-uji/submit').length, 1);
@@ -883,7 +983,95 @@ try {
 		assert.match(h.sqlTanpaLayanan.detail, /services\.postgres/);
 	});
 
-	const agent = JSON.parse(fs.readFileSync(catatanAgent, 'utf8'));
+	// --- Panel "Pergudangan Data" ---------------------------------------------------------
+	if (h.gudang) {
+		const g = h.gudang;
+		const kirimPgd = permintaan.filter((x) => x.jalur === '/api/relay/dispatch' && x.badan?.payload?.courseId === COURSE_PGD).map((x) => x.badan);
+		const opPgd = kirimPgd.map((x) => x.operation);
+		const langkah = (b) => Object.fromEntries(['layanan', 'dataset', 'kerja', 'jelajah', 'er'].map((id) => [id, /class="langkah langkah--([a-z]+)"/.exec(b[`b-${id}`])?.[1]]));
+		periksa('panel Pergudangan Data: hanya untuk mata kuliah yang modulnya butuh basis data (katalog), terbuka sebagai tab, skrip panel berjalan di bawah CSP, lima langkah berstatus nyata', () => {
+			assert.ok(h.perintah.includes('dsworkbench.gudang.open'));
+			assert.deepEqual(g.berlayanan, [COURSE_PGD], 'ditentukan dari kemampuan modul di katalog');
+			assert.equal(g.bukanLayanan, false, 'mata kuliah tanpa basis data praktikum: panel tidak dibuka');
+			assert.equal(g.tab, 'Pergudangan Data');
+			assert.ok(g.pesanPanel >= 1 && g.siapPanel, 'skrip panel berjalan dan mengirim "siap"');
+			const csp = cspDari(g.html);
+			assert.ok(csp.startsWith("default-src 'none'") && csp.includes("connect-src 'none'") && /script-src 'nonce-[0-9a-f]{32}'/.test(csp) && !/unsafe/.test(csp), csp);
+			assert.ok(!g.html.includes(TOKEN) && !g.html.includes(SERVER) && !/<iframe|<form\b|\son[a-z]+="|<link\b|<img\b/.test(g.html));
+			assert.equal((g.html.match(/<script\b/g) ?? []).length, 2);
+			const a = g.awal;
+			assert.equal(a.model.namaMataKuliah, 'Pergudangan Data');
+			assert.deepEqual(a.model.modul.map((m) => m.id), [MODUL_PGD, 'module-03'], 'pemilih modul: hanya modul yang butuh basis data');
+			assert.equal(a.model.modulTerpilih, 0);
+			assert.deepEqual(langkah(a.bagian), { layanan: 'kini', dataset: 'kini', kerja: 'info', jelajah: 'menunggu', er: 'menunggu' });
+			assert.ok(a.bagian['b-layanan'].includes('<code>localhost:5433</code>') && a.bagian['b-layanan'].includes('data-tindakan="nyalakan"'));
+			assert.ok(a.bagian['b-dataset'].includes('Belum disiapkan') && a.bagian['b-dataset'].includes('0/9 berkas'));
+			assert.ok(a.bagian['b-kerja'].includes('data-tindakan="buka-berkas" data-indeks="0"') && a.bagian['b-kerja'].includes('modul-02/02_muat.sql — belum ada di folder kerja'));
+			assert.ok(a.bagian['b-web'].includes('Studi Kasus, portofolio kelompok, dan salinan data Kelas'));
+		});
+		periksa('panel: "Nyalakan" lewat relay (service.start); katalog lewat pipa agent dengan amplop ber-services; diagram ER memuat tabel dan relasi dari kunci asing; nama kolom ber-HTML tetap teks', () => {
+			assert.equal(g.nyalakan, 'berhasil');
+			assert.ok(opPgd.indexOf('service.start') > opPgd.indexOf('service.status') && opPgd.indexOf('service.status') >= 0);
+			assert.deepEqual(kirimPgd.find((x) => x.operation === 'service.start'), { deviceId: 'dev-uji', operation: 'service.start', payload: { courseId: COURSE_PGD } });
+			assert.ok(!opPgd.includes('db.catalog') && !opPgd.includes('sql.execute'), 'katalog tidak lewat relay');
+			const m = g.menyala.model;
+			assert.equal(m.katalog.jenis, 'siap');
+			assert.equal(m.katalog.katalog.schemas.length, 2);
+			assert.deepEqual(m.target.map((t) => [t.label, t.menyala]), [['Sumber · nusamart_oltp', true], ['Gudang · nusamart_dw', true]]);
+			const d = m.er.diagram;
+			assert.deepEqual([d.kotak.length, d.garis.length, d.adaInfoFk], [5, 3, true]);
+			assert.deepEqual(d.garis.map((x) => x.label).sort(), ['dw.fakta_penjualan(order_id) → staging.orders(order_id)', 'dw.fakta_penjualan(pelanggan_sk) → dw.dim_pelanggan(pelanggan_sk)', 'dw.fakta_penjualan(produk_sk) → dw.dim_produk(produk_sk)']);
+			const er = g.menyala.bagian['b-er'];
+			assert.equal((er.match(/<g class="er-tabel/g) ?? []).length, 5);
+			assert.equal((er.match(/<path class="er-garis"/g) ?? []).length, 3);
+			assert.ok(er.includes('&lt;img src=x onerror=&quot;alert(1)&quot;&gt;') || er.includes('&lt;img src=x onerr'), 'nama kolom ber-HTML di-escape');
+			assert.ok(!/<img|<script/.test(er) && !/<img|<script/.test(g.menyala.bagian['b-jelajah']));
+			assert.ok(g.menyala.bagian['b-jelajah'].includes('— 4 tabel') && g.menyala.bagian['b-jelajah'].includes('data-tindakan="pratinjau"'));
+			assert.deepEqual(langkah(g.menyala.bagian), { layanan: 'selesai', dataset: 'kini', kerja: 'info', jelajah: 'info', er: 'info' });
+		});
+		periksa('panel: "Siapkan dataset" lalu "Muat data ke basis data sumber" sebagai job relay {courseId, moduleId, job:true}; status belum → siap → dimuat; sibuk tidak tertinggal', () => {
+			assert.equal(g.muatSebelumSiap, 'ditolak', 'memuat sebelum dataset lengkap ditolak ekstensi');
+			assert.equal(g.siapkan, 'selesai');
+			assert.equal(g.muat, 'selesai');
+			assert.deepEqual(kirimPgd.find((x) => x.operation === 'dataset.verify'), { deviceId: 'dev-uji', operation: 'dataset.verify', payload: { courseId: COURSE_PGD, moduleId: MODUL_PGD } });
+			assert.deepEqual(kirimPgd.find((x) => x.operation === 'dataset.materialize'), { deviceId: 'dev-uji', operation: 'dataset.materialize', payload: { courseId: COURSE_PGD, moduleId: MODUL_PGD, job: true } });
+			assert.deepEqual(kirimPgd.find((x) => x.operation === 'service.postgres.load'), { deviceId: 'dev-uji', operation: 'service.postgres.load', payload: { courseId: COURSE_PGD, moduleId: MODUL_PGD, job: true } });
+			assert.ok(opPgd.indexOf('dataset.materialize') < opPgd.indexOf('service.postgres.load'));
+			const tagih = permintaan.filter((x) => x.jalur.startsWith('/api/relay/jobs/')).map((x) => x.jalur);
+			assert.deepEqual(tagih, ['/api/relay/jobs/job-pgd-1?since=0', '/api/relay/jobs/job-pgd-1?since=20', '/api/relay/jobs/job-pgd-2?since=0', '/api/relay/jobs/job-pgd-2?since=20']);
+			assert.ok(g.setelahSiapkan.bagian['b-dataset'].includes('Siap di laptop, belum dimuat') && g.setelahSiapkan.bagian['b-dataset'].includes('9/9 berkas') && g.setelahSiapkan.bagian['b-dataset'].includes('Dataset modul siap di data/raw/'));
+			assert.ok(g.setelahMuat.bagian['b-dataset'].includes('Sudah dimuat') && g.setelahMuat.bagian['b-dataset'].includes('7 tabel, 12.345 baris') && g.setelahMuat.bagian['b-dataset'].includes('Muat ulang data sumber'));
+			assert.ok(g.setelahMuat.bagian['b-layanan'].includes('data nusamart-oltp 2026.1, 12.345 baris'));
+			assert.deepEqual(langkah(g.setelahMuat.bagian), { layanan: 'selesai', dataset: 'selesai', kerja: 'info', jelajah: 'info', er: 'info' });
+			assert.deepEqual([g.awal.sibuk, g.setelahSiapkan.sibuk, g.setelahMuat.sibuk], [false, false, false]);
+			assert.ok(pgd.dataset && pgd.dimuat);
+		});
+		periksa('panel: pilih skema dan saring diagram, buka berkas .sql modul dari folder kerja, modul terkunci menampilkan pesan server; pesan tak sah ditolak tanpa efek', () => {
+			assert.equal(g.pilihSkema.hasil, 'skema');
+			assert.deepEqual([g.pilihSkema.kotak, g.pilihSkema.luar, g.pilihSkema.garis], [5, ['staging.orders'], 3], 'skema dw: tabel luar staging.orders ikut digambar');
+			assert.equal(g.saring.hasil, 'saring');
+			assert.deepEqual(g.saring.nama.sort(), ['dim_produk', 'fakta_penjualan']);
+			assert.equal(g.bukaBerkas.hasil, 'dibuka');
+			assert.equal(nj(nyata(g.bukaBerkas.aktif)), nj(path.join(nyata(ws), COURSE_PGD, 'modul-02', '01_ddl.sql')));
+			assert.equal(g.bukaBerkasBelumAda, 'tidak_ada');
+			assert.equal(g.modulTerkunci.hasil, 'modul');
+			assert.ok(g.modulTerkunci.kerja.includes('Materi modul ini belum dibuka.'), g.modulTerkunci.kerja);
+			assert.ok(g.modulTerkunci.dataset.includes('tidak memakai dataset'), 'dataset.verify 404 → modul tanpa dataset');
+			assert.deepEqual(g.ditolak, Array(g.ditolak.length).fill('ditolak'));
+			assert.ok(g.ditolak.length >= 8);
+			const jumlah = (op) => opPgd.filter((o) => o === op).length;
+			assert.deepEqual([jumlah('service.start'), jumlah('service.stop'), jumlah('dataset.materialize'), jumlah('service.postgres.load')], [1, 0, 1, 1], 'pesan tak sah tidak memicu operasi apa pun');
+		});
+	} else {
+		dilewati.push('panel Pergudangan Data: ekstensi yang diuji belum punya kait uji panel (versi lama)');
+	}
+
+	// Agent menutup diri begitu pipanya ditutup (stdin EOF) dan pamit ke server beberapa puluh
+	// milidetik kemudian; aplikasi tidak menunggunya keluar. Terukur: catatan "disconnect" bisa
+	// tertulis belasan milidetik SETELAH proses aplikasi selesai, jadi ditunggu sebentar di sini.
+	const bacaCatatanAgent = () => JSON.parse(fs.readFileSync(catatanAgent, 'utf8'));
+	for (const batas = Date.now() + 5000; Date.now() < batas && !bacaCatatanAgent().some((x) => x.jenis === 'disconnect'); ) await new Promise((r) => setTimeout(r, 100));
+	const agent = bacaCatatanAgent();
 	periksa('agent: capability ide.stdio.v1, amplop diterima lewat relay, hasil job pipa tidak ke server', () => {
 		const connect = agent.find((x) => x.jenis === 'connect');
 		assert.ok(connect.capabilities.includes('ide.stdio.v1'));
@@ -894,7 +1082,7 @@ try {
 		assert.ok(!JSON.stringify(agent).includes('jangan-bocor'));
 	});
 	periksa('penutupan rapi: agent pamit ke server saat VS Code ditutup', () => {
-		assert.ok(agent.some((x) => x.jenis === 'disconnect'));
+		assert.ok(agent.some((x) => x.jenis === 'disconnect'), `catatan agent berakhir dengan: ${agent.slice(-5).map((x) => `${x.jenis}${x.messageId ? `(${x.messageId})` : ''}`).join(', ')}`);
 	});
 	// --- Pembaruan (ADR-072 §7b) ---------------------------------------------------
 	if (h.pembaruan?.didukung && !bolehPerbarui) {

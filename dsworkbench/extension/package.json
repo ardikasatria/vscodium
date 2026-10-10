@@ -3,7 +3,7 @@
   "displayName": "DSWorkbench",
   "icon": "media/ikon.png",
   "description": "Kelas, naskah modul, notebook, tugas, checkpoint, SQL, terminal praktikum, dan asisten belajar Bravais untuk Sains Data ITERA, dijalankan di komputer Anda lewat Local Runner.",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "publisher": "sditera",
   "private": true,
   "license": "UNLICENSED",
@@ -255,6 +255,12 @@
         "title": "Pratinjau 100 baris",
         "category": "DSWorkbench",
         "icon": "$(eye)"
+      },
+      {
+        "command": "dsworkbench.gudang.open",
+        "title": "Pergudangan Data",
+        "category": "DSWorkbench",
+        "icon": "$(layout)"
       },
       {
         "command": "dsworkbench.sql.serviceMenu",
@@ -540,6 +546,10 @@
         {
           "command": "dsworkbench.openMaterial",
           "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.gudang.open",
+          "when": "dsworkbench.masuk"
         }
       ],
       "view/title": [
@@ -597,12 +607,17 @@
           "command": "dsworkbench.getStarted",
           "when": "view == dsworkbench.status",
           "group": "1_log@2"
+        },
+        {
+          "command": "dsworkbench.gudang.open",
+          "when": "view == dsworkbench.basisData && dsworkbench.masuk",
+          "group": "navigation@0"
         }
       ],
       "view/item/context": [
         {
           "command": "dsworkbench.openCourse",
-          "when": "view == dsworkbench.kelas && viewItem == kelas",
+          "when": "view == dsworkbench.kelas && viewItem =~ /^kelas(Gudang)?$/",
           "group": "inline@1"
         },
         {
@@ -612,7 +627,7 @@
         },
         {
           "command": "dsworkbench.openCourse",
-          "when": "view == dsworkbench.kelas && viewItem == kelas",
+          "when": "view == dsworkbench.kelas && viewItem =~ /^kelas(Gudang)?$/",
           "group": "1_buka@1"
         },
         {
@@ -622,22 +637,22 @@
         },
         {
           "command": "dsworkbench.openMaterial",
-          "when": "view == dsworkbench.kelas && viewItem == lessonModul",
+          "when": "view == dsworkbench.kelas && viewItem =~ /^lessonModul(Gudang)?$/",
           "group": "inline@1"
         },
         {
           "command": "dsworkbench.prepareModule",
-          "when": "view == dsworkbench.kelas && viewItem =~ /^(lessonModul|modulBerkas)$/",
+          "when": "view == dsworkbench.kelas && viewItem =~ /^(lessonModul|modulBerkas)(Gudang)?$/",
           "group": "inline@0"
         },
         {
           "command": "dsworkbench.openMaterial",
-          "when": "view == dsworkbench.kelas && viewItem == lessonModul",
+          "when": "view == dsworkbench.kelas && viewItem =~ /^lessonModul(Gudang)?$/",
           "group": "0_baca@0"
         },
         {
           "command": "dsworkbench.prepareModule",
-          "when": "view == dsworkbench.kelas && viewItem =~ /^(lessonModul|modulBerkas)$/",
+          "when": "view == dsworkbench.kelas && viewItem =~ /^(lessonModul|modulBerkas)(Gudang)?$/",
           "group": "1_buka@0"
         },
         {
@@ -729,6 +744,16 @@
           "command": "dsworkbench.env.openFolder",
           "when": "view == dsworkbench.status && viewItem == folderRuntime",
           "group": "1_env@1"
+        },
+        {
+          "command": "dsworkbench.gudang.open",
+          "when": "view == dsworkbench.kelas && viewItem =~ /Gudang$/",
+          "group": "inline@3"
+        },
+        {
+          "command": "dsworkbench.gudang.open",
+          "when": "view == dsworkbench.kelas && viewItem =~ /Gudang$/",
+          "group": "0_baca@1"
         }
       ],
       "notebook/toolbar": [
