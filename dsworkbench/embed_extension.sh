@@ -32,6 +32,9 @@ cp -R "${SRC}" "${DEST}/dsworkbench"
 # Tema bawaan: hanya pada salinan tertanam.
 "${ROOT}/dsworkbench/tema_bawaan.sh" "${DEST}/dsworkbench"
 
+# Tema ikon berkas bawaan: Material Icon Theme (MIT) sebagai ekstensi bawaan kedua.
+"${ROOT}/dsworkbench/ikon_bawaan.sh" "${DEST}" "${DEST}/dsworkbench"
+
 # Pembaruan ekstensi: aplikasi menolak memasang versi baru dari ekstensi bawaan
 # kecuali id-nya terdaftar di product.json (vscode: installExtensionTask,
 # "builtinAutoUpdate"). Gagal keras bila tambalan product.json belum masuk.
