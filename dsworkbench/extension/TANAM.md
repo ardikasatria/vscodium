@@ -1,7 +1,7 @@
 # DSWorkbench — ekstensi siap tanam (catatan untuk pembangun aplikasi)
 
-Hasil bangun `apps/ide/extension` (ekstensi `sditera.dsworkbench` 0.1.4).
-Local Runner bawaan: 0.4.10 @ 53bd8a3.
+Hasil bangun `apps/ide/extension` (ekstensi `sditera.dsworkbench` 0.1.5).
+Local Runner bawaan: 0.4.10 @ ac05f93.
 
 ## Menanam ke aplikasi bermerek (fork skrip VSCodium)
 
@@ -33,5 +33,5 @@ Local Runner bawaan: 0.4.10 @ 53bd8a3.
 | `themes/` | `DSWorkbench Gelap` dan `DSWorkbench Terang` |
 | `agent-payload/` | sumber Local Runner + `MANIFEST.json` (versi, commit, sha256 tiap berkas) |
 
-Memasang sebagai ekstensi biasa: pakai `dsworkbench-0.1.4.vsix` di folder induk
+Memasang sebagai ekstensi biasa: pakai `dsworkbench-0.1.5.vsix` di folder induk
 (`code --install-extension …` atau *Extensions: Install from VSIX*).

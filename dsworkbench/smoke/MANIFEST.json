@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "dibuat": "2026-10-10T10:44:46Z",
-  "commit": "53bd8a37ce91",
+  "dibuat": "2026-10-10T10:54:49Z",
+  "commit": "ac05f93fb707",
   "adaPerubahanLokal": false,
   "ekstensi": {
     "id": "sditera.dsworkbench",
-    "versi": "0.1.4",
-    "sha256": "04334ea2ee97f993f8c7b633ff066d02e91b3800383a1aea94a6e0bd54c62458"
+    "versi": "0.1.5",
+    "sha256": "a18546b65cccda2fe6fa08092aabdeba209c8c35b71010d232d5f3ea101f2c97"
   },
   "berkas": [
     {

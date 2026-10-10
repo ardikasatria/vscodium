@@ -3,7 +3,7 @@
   "displayName": "DSWorkbench",
   "icon": "media/ikon.png",
   "description": "Kelas, naskah modul, notebook, tugas, checkpoint, SQL, terminal praktikum, dan asisten belajar Bravais untuk Sains Data ITERA, dijalankan di komputer Anda lewat Local Runner.",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "sditera",
   "private": true,
   "license": "UNLICENSED",
