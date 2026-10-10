@@ -1,6 +1,4 @@
-mode=baru
+mode=tambah-windows
 tag=dsworkbench-0.1.0-uji.3
-judul=DSWorkbench 0.1.0 — uji 3 (pra-rilis)
-run_linux=38029019808
-run_macos=38029021940
-picu=20261010T1425
+run_windows=38032961340
+picu=20261010T1450

@@ -4,8 +4,6 @@ Aplikasi DSWorkbench yang baru: satu aplikasi untuk notebook, SQL, terminal, dan
 
 **Ini pra-rilis untuk uji terbatas.** Workbench di peramban tetap bisa dipakai. Tutup aplikasi "Data Science Workbench" yang lama sebelum membuka yang ini: aplikasi baru memakai lingkungan Python yang sama.
 
-> **Windows menyusul.** Installer Windows untuk uji 3 masih dibangun dan akan ditambahkan ke halaman ini. Sampai itu ada, pengguna Windows memakai uji 2.
-
 ### Yang baru sejak uji 2
 
 - **Mode lab** untuk komputer yang dipakai bergantian dengan satu akun komputer: masuk tidak disimpan, keluar otomatis saat aplikasi ditutup atau ditinggal, jejak dibersihkan. Diaktifkan pengelola lab per komputer. Belum pernah dicoba di Windows.
@@ -18,7 +16,7 @@ Aplikasi DSWorkbench yang baru: satu aplikasi untuk notebook, SQL, terminal, dan
 
 | Komputer | Berkas |
 |---|---|
-| Windows 10/11 (64-bit) | `DSWorkbenchUserSetup-x64-<versi>.exe` (menyusul) |
+| Windows 10/11 (64-bit) | `DSWorkbenchUserSetup-x64-<versi>.exe` |
 | Mac Apple Silicon (M1 dan seterusnya) | `DSWorkbench-darwin-arm64-<versi>.zip` |
 | Mac Intel | `DSWorkbench-darwin-x64-<versi>.zip` |
 | Debian/Ubuntu (64-bit) | `dsworkbench_<versi>_amd64.deb` |
