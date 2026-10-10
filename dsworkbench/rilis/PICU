@@ -1,0 +1,6 @@
+# Mengubah berkas ini di cabang dsworkbench menerbitkan pra-rilis dari artefak build CI.
+tag=dsworkbench-0.1.0-uji.2
+judul=DSWorkbench 0.1.0 — uji 2 (pra-rilis)
+run_linux=38018203857
+run_macos=38018206100
+run_windows=38018208079

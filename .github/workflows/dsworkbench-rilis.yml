@@ -1,0 +1,83 @@
+# Terbitkan pra-rilis DSWorkbench dari artefak build CI, tanpa mengunduh ke laptop.
+#
+# Pemicu: push ke cabang `dsworkbench` yang mengubah dsworkbench/rilis/PICU.
+# Parameter dibaca dari berkas itu (tag, judul, id run build per OS). Catatan rilis:
+# dsworkbench/rilis/CATATAN.md. Hanya memakai GITHUB_TOKEN repo ini.
+name: dsworkbench-rilis
+
+on:
+  push:
+    branches:
+      - dsworkbench
+    paths:
+      - dsworkbench/rilis/PICU
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: dsworkbench-rilis
+  cancel-in-progress: false
+
+jobs:
+  rilis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Parameter
+        run: |
+          set -euo pipefail
+          nilai() { sed -n "s/^$1=//p" dsworkbench/rilis/PICU | tail -n 1; }
+          for k in tag judul run_linux run_macos run_windows; do
+            v="$( nilai "$k" )"
+            [[ -n "$v" ]] || { echo "PICU tanpa $k" >&2; exit 1; }
+            echo "${k^^}=$v" >> "$GITHUB_ENV"
+          done
+          [[ "$( nilai tag )" =~ ^dsworkbench-[0-9A-Za-z.-]+$ ]] || { echo "tag tidak sah" >&2; exit 1; }
+
+      - name: Tolak bila rilis sudah ada
+        run: |
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "Rilis $TAG sudah ada; tidak ditimpa." >&2; exit 1
+          fi
+
+      - name: Unduh artefak build
+        run: |
+          set -euo pipefail
+          mkdir -p a/linux a/mac-arm64 a/mac-x64 a/win
+          gh run download "$RUN_LINUX"   --repo "$REPO" --name bin-x64   --dir a/linux
+          gh run download "$RUN_MACOS"   --repo "$REPO" --name bin-arm64 --dir a/mac-arm64
+          gh run download "$RUN_MACOS"   --repo "$REPO" --name bin-x64   --dir a/mac-x64
+          gh run download "$RUN_WINDOWS" --repo "$REPO" --name bin-x64   --dir a/win
+
+      - name: Pilih installer dan verifikasi checksum build
+        run: |
+          set -euo pipefail
+          mkdir rilis
+          ambil() { # folder, pola
+            local f; f="$( find "$1" -maxdepth 1 -type f -regextype posix-extended -regex ".*/$2" | head -n 1 )"
+            [[ -f "$f" ]] || { echo "tidak ada berkas berpola $2 di $1" >&2; ls -la "$1" >&2; exit 1; }
+            ( cd "$1" && sha256sum -c "$( basename "$f" ).sha256" )
+            cp "$f" rilis/
+          }
+          ambil a/win       'DSWorkbenchUserSetup-x64-[0-9.]+\.exe'
+          ambil a/mac-arm64 'DSWorkbench-darwin-arm64-[0-9.]+\.zip'
+          ambil a/mac-x64   'DSWorkbench-darwin-x64-[0-9.]+\.zip'
+          ambil a/linux     'dsworkbench_[0-9.]+_amd64\.deb'
+          ( cd rilis && sha256sum * > SHA256SUMS && cat SHA256SUMS && ls -la )
+
+      - name: Terbitkan pra-rilis
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" --repo "$REPO" --target "$GITHUB_SHA" --prerelease --latest=false \
+            --title "$JUDUL" --notes-file dsworkbench/rilis/CATATAN.md rilis/*
+          gh release view "$TAG" --repo "$REPO" --json url,isPrerelease,assets \
+            --jq '.url, "pra-rilis=\(.isPrerelease)", (.assets[] | "\(.name) \(.size)")'
