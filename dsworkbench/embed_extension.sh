@@ -36,6 +36,10 @@ cp -R "${SRC}" "${DEST}/dsworkbench"
 # kecuali id-nya terdaftar di product.json (vscode: installExtensionTask,
 # "builtinAutoUpdate"). Gagal keras bila tambalan product.json belum masuk.
 PRODUK="$( dirname "${DEST}" )/product.json"
+# Seluruh isi ekstensi tertanam harus terbaca semua pengguna (paket sistem dimiliki root).
+chmod -R a+rX "${DEST}/dsworkbench"
+[[ -z "$( find "${DEST}/dsworkbench" ! -perm -004 -print -quit )" ]] || { echo "ada berkas ekstensi yang tidak terbaca pengguna lain" >&2; exit 1; }
+
 ID="$( jq -r '"\(.publisher).\(.name)"' "${DEST}/dsworkbench/package.json" )"
 if ! jq -e --arg id "${ID}" '(.builtInExtensionsEnabledWithAutoUpdates // []) | map(ascii_downcase) | index($id | ascii_downcase) != null' "${PRODUK}" > /dev/null; then
   echo "product.json hasil bangun tidak memuat \"${ID}\" di builtInExtensionsEnabledWithAutoUpdates (lihat product.tambalan.json)" >&2

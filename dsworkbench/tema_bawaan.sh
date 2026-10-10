@@ -53,5 +53,8 @@ jq -e --arg g "${GELAP}" --arg t "${TERANG}" '
   || { echo "tema_bawaan: manifest berubah di luar configurationDefaults" >&2; exit 1; }
 
 mv "${TMP}" "${PKG}"
+# mktemp membuat berkas 0600; di paket .deb/.rpm pemiliknya root, sehingga pengguna biasa
+# tidak dapat membaca manifes dan ekstensi tidak termuat (ditemukan uji asap pada uji 2).
+chmod 644 "${PKG}"
 trap - EXIT
 echo "Tema bawaan aplikasi: ${GELAP} (terang: ${TERANG}) ditetapkan di ${PKG}"
