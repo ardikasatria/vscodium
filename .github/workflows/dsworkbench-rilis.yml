@@ -37,10 +37,16 @@ jobs:
           set -euo pipefail
           nilai() { sed -n "s/^$1=//p" dsworkbench/rilis/PICU | tail -n 1; }
           MODE="$( nilai mode )"; MODE="${MODE:-baru}"
-          [[ "$MODE" == "baru" || "$MODE" == "ganti-linux" ]] || { echo "mode tidak dikenal: $MODE" >&2; exit 1; }
+          # baru          : rilis baru dari build Linux + macOS (+ Windows bila run_windows diisi)
+          # ganti-linux   : ganti .deb pada rilis yang ada
+          # tambah-windows: tambahkan installer Windows ke rilis yang ada (Windows menyusul)
+          [[ "$MODE" == "baru" || "$MODE" == "ganti-linux" || "$MODE" == "tambah-windows" ]] || { echo "mode tidak dikenal: $MODE" >&2; exit 1; }
           echo "MODE=$MODE" >> "$GITHUB_ENV"
-          wajib=( tag run_linux )
-          [[ "$MODE" == "baru" ]] && wajib+=( judul run_macos run_windows )
+          wajib=( tag )
+          [[ "$MODE" == "baru" ]] && wajib+=( judul run_linux run_macos )
+          [[ "$MODE" == "ganti-linux" ]] && wajib+=( run_linux )
+          [[ "$MODE" == "tambah-windows" ]] && wajib+=( run_windows )
+          echo "RUN_WINDOWS=$( nilai run_windows )" >> "$GITHUB_ENV"
           for k in "${wajib[@]}"; do
             v="$( nilai "$k" )"
             [[ -n "$v" ]] || { echo "PICU tanpa $k" >&2; exit 1; }
@@ -53,16 +59,20 @@ jobs:
           set -euo pipefail
           if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then ADA=ya; else ADA=tidak; fi
           if [[ "$MODE" == "baru" && "$ADA" == "ya" ]]; then echo "Rilis $TAG sudah ada; tidak ditimpa." >&2; exit 1; fi
-          if [[ "$MODE" == "ganti-linux" && "$ADA" == "tidak" ]]; then echo "Rilis $TAG belum ada." >&2; exit 1; fi
+          if [[ "$MODE" != "baru" && "$ADA" == "tidak" ]]; then echo "Rilis $TAG belum ada." >&2; exit 1; fi
 
       - name: Unduh artefak build
         run: |
           set -euo pipefail
           mkdir -p a/linux a/mac-arm64 a/mac-x64 a/win rilis
-          gh run download "$RUN_LINUX" --repo "$REPO" --name bin-x64 --dir a/linux
+          if [[ "$MODE" != "tambah-windows" ]]; then
+            gh run download "$RUN_LINUX" --repo "$REPO" --name bin-x64 --dir a/linux
+          fi
           if [[ "$MODE" == "baru" ]]; then
             gh run download "$RUN_MACOS"   --repo "$REPO" --name bin-arm64 --dir a/mac-arm64
             gh run download "$RUN_MACOS"   --repo "$REPO" --name bin-x64   --dir a/mac-x64
+          fi
+          if [[ -n "$RUN_WINDOWS" && "$MODE" != "ganti-linux" ]]; then
             gh run download "$RUN_WINDOWS" --repo "$REPO" --name bin-x64   --dir a/win
           fi
 
@@ -75,13 +85,16 @@ jobs:
             ( cd "$1" && sha256sum -c "$( basename "$f" ).sha256" )
             cp "$f" rilis/
           }
+          if [[ -n "$RUN_WINDOWS" && "$MODE" != "ganti-linux" ]]; then
+            ambil a/win       'DSWorkbenchUserSetup-x64-[0-9.]+\.exe'
+          fi
+          [[ "$MODE" == "tambah-windows" ]] && exit 0
           ambil a/linux 'dsworkbench_[0-9.]+_amd64\.deb'
           if [[ "$MODE" == "baru" ]]; then
             # Arsip untuk distro selain Debian/Ubuntu (pengganti AppImage, yang belum terbukti berjalan).
             ambil a/linux     'DSWorkbench-linux-x64-[0-9.]+\.tar\.gz'
             tar -tzvf rilis/DSWorkbench-linux-x64-*.tar.gz | grep -E 'extensions/dsworkbench/package\.json$' | tee /dev/stderr | grep -q '^-rw-r--r--' \
               || { echo "package.json ekstensi di .tar.gz tidak terbaca semua pengguna" >&2; exit 1; }
-            ambil a/win       'DSWorkbenchUserSetup-x64-[0-9.]+\.exe'
             ambil a/mac-arm64 'DSWorkbench-darwin-arm64-[0-9.]+\.zip'
             ambil a/mac-x64   'DSWorkbench-darwin-x64-[0-9.]+\.zip'
           fi
@@ -108,6 +121,18 @@ jobs:
             [[ "$lama" == "$BARU" ]] || gh release delete-asset "$TAG" "$lama" --repo "$REPO" --yes
           done
           grep -vE '  dsworkbench_[0-9.]+_amd64\.deb$' lama/SHA256SUMS > rilis/SHA256SUMS
+          ( cd rilis && sha256sum "$BARU" >> SHA256SUMS && cat SHA256SUMS )
+          gh release upload "$TAG" --repo "$REPO" --clobber "rilis/$BARU"
+          gh release upload "$TAG" --repo "$REPO" --clobber rilis/SHA256SUMS
+          gh release edit "$TAG" --repo "$REPO" --notes-file dsworkbench/rilis/CATATAN.md
+
+      - name: Tambahkan installer Windows pada rilis yang ada
+        if: env.MODE == 'tambah-windows'
+        run: |
+          set -euo pipefail
+          BARU="$( basename "$( ls rilis/DSWorkbenchUserSetup-x64-*.exe )" )"
+          gh release download "$TAG" --repo "$REPO" --pattern SHA256SUMS --dir lama
+          grep -vE '  DSWorkbenchUserSetup-x64-[0-9.]+\.exe$' lama/SHA256SUMS > rilis/SHA256SUMS || true
           ( cd rilis && sha256sum "$BARU" >> SHA256SUMS && cat SHA256SUMS )
           gh release upload "$TAG" --repo "$REPO" --clobber "rilis/$BARU"
           gh release upload "$TAG" --repo "$REPO" --clobber rilis/SHA256SUMS

@@ -1,29 +1,30 @@
-## DSWorkbench 0.1.0 — uji 2 (pra-rilis)
+## DSWorkbench 0.1.0 — uji 3 (pra-rilis)
 
 Aplikasi DSWorkbench yang baru: satu aplikasi untuk notebook, SQL, terminal, dan Git, dengan Local Runner di dalamnya. Masuk dengan akun Workbench, tanpa kode pairing.
 
 **Ini pra-rilis untuk uji terbatas.** Workbench di peramban tetap bisa dipakai. Tutup aplikasi "Data Science Workbench" yang lama sebelum membuka yang ini: aplikasi baru memakai lingkungan Python yang sama.
 
-> **Linux (.deb) diganti.** Paket pertama (`dsworkbench_1.135.06794_amd64.deb`) bermasalah: ekstensi DSWorkbench di dalamnya tidak terbaca pengguna biasa, sehingga panel DSWorkbench tidak muncul. Berkas `.deb` di halaman ini sekarang adalah penggantinya; bila Anda sudah memasang yang lama, pasang ulang dari berkas ini. Windows dan macOS tidak berubah.
+> **Windows menyusul.** Installer Windows untuk uji 3 masih dibangun dan akan ditambahkan ke halaman ini. Sampai itu ada, pengguna Windows memakai uji 2.
 
-### Yang baru sejak uji 1
+### Yang baru sejak uji 2
 
-- Panel **Naskah modul**, **Beranda**, **Bravais**, dan **Sosial** di dalam aplikasi.
-- **Siapkan lingkungan praktikum** dari dalam aplikasi; di Windows Python 3.12 dipasang otomatis ke folder aplikasi.
-- Ekstensi DSWorkbench dapat **memperbarui dirinya sendiri** (pengguna uji 1 perlu memasang versi ini sekali).
-- Tema DSWorkbench Gelap menjadi bawaan sejak pembukaan pertama.
-- Installer Windows kini memuat nomor versi.
+- **Mode lab** untuk komputer yang dipakai bergantian dengan satu akun komputer: masuk tidak disimpan, keluar otomatis saat aplikasi ditutup atau ditinggal, jejak dibersihkan. Diaktifkan pengelola lab per komputer. Belum pernah dicoba di Windows.
+- **Ganti avatar** langsung dari panel Sosial; perbaikan avatar yang tampil sebagai inisial.
+- **Ikon berkas** Material Icon Theme menjadi bawaan (bisa diganti di pengaturan).
+- Linux: arsip **`.tar.gz`** untuk distro selain Debian/Ubuntu, menggantikan AppImage.
+- Ekstensi DSWorkbench 0.1.1.
 
 ### Unduh
 
 | Komputer | Berkas |
 |---|---|
-| Windows 10/11 (64-bit) | `DSWorkbenchUserSetup-x64-<versi>.exe` |
+| Windows 10/11 (64-bit) | `DSWorkbenchUserSetup-x64-<versi>.exe` (menyusul) |
 | Mac Apple Silicon (M1 dan seterusnya) | `DSWorkbench-darwin-arm64-<versi>.zip` |
 | Mac Intel | `DSWorkbench-darwin-x64-<versi>.zip` |
 | Debian/Ubuntu (64-bit) | `dsworkbench_<versi>_amd64.deb` |
+| Linux lain (Fedora, Arch, …) | `DSWorkbench-linux-x64-<versi>.tar.gz` |
 
-Cocokkan unduhan dengan `SHA256SUMS`. AppImage tidak disertakan: belum terbukti berjalan (gagal di Ubuntu 24.04).
+Cocokkan unduhan dengan `SHA256SUMS`.
 
 ### Memasang
 
@@ -32,14 +33,14 @@ Aplikasi belum bertanda tangan penerbit, jadi sistem operasi memberi peringatan 
 - **Windows:** jalankan `.exe` (tanpa administrator). Bila muncul "Windows protected your PC": **More info** → **Run anyway**.
 - **macOS:** buka `.zip`, seret **DSWorkbench** ke **Applications**, buka. Bila ditolak: **System Settings → Privacy & Security → Open Anyway**. Bila disebut "rusak": `xattr -cr /Applications/DSWorkbench.app`.
 - **Debian/Ubuntu:** `sudo apt install ./dsworkbench_*.deb`.
+- **Linux lain:** `mkdir -p ~/DSWorkbench && tar -xzf DSWorkbench-linux-x64-*.tar.gz -C ~/DSWorkbench`, lalu jalankan `~/DSWorkbench/bin/dsworkbench`. Di Ubuntu 24.04 atau lebih baru pakai `.deb`.
 
 Lalu ikuti panduan **Mulai dengan DSWorkbench** di dalam aplikasi: masuk, siapkan lingkungan praktikum, buka Kelas.
 
 ### Yang sudah dan belum diuji
 
-- Uji otomatis pada aplikasi terpasang (Windows, macOS Intel dan Apple Silicon, Ubuntu `.deb`): aplikasi dan ekstensi berjalan, notebook dijalankan lewat Local Runner, dan lingkungan Data Wrangling terpasang dari nol (di Windows termasuk Python). Uji itu memakai server tiruan.
-- Terhadap server sungguhan baru dicoba di macOS: masuk akun, Kelas, notebook, tugas, checkpoint, pengumpulan, naskah, Bravais.
-- **Belum dicoba orang** di Windows dan Linux. SQL Pergudangan Data dan lingkungan Deep Learning belum diuji di aplikasi ini.
+- Terhadap server sungguhan baru dicoba di macOS (uji 2): masuk akun, Kelas, notebook, tugas, checkpoint, pengumpulan, naskah, Bravais.
+- **Belum dicoba orang** di Windows dan Linux. Mode lab, SQL Pergudangan Data, dan lingkungan Deep Learning belum diuji orang di aplikasi ini.
 - Di Windows, menghentikan sel memulai ulang kernel (variabel hilang), sama seperti di Workbench web.
 
-Berbasis [VSCodium](https://github.com/VSCodium/vscodium) 1.135 (Code - OSS, lisensi MIT). Galeri ekstensi: Open VSX.
+Berbasis [VSCodium](https://github.com/VSCodium/vscodium) 1.135 (Code - OSS, lisensi MIT). Galeri ekstensi: Open VSX. Ikon berkas: [Material Icon Theme](https://github.com/material-extensions/vscode-material-icon-theme) (lisensi MIT).
