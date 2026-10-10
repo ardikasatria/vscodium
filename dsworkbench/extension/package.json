@@ -2,8 +2,8 @@
   "name": "dsworkbench",
   "displayName": "DSWorkbench",
   "icon": "media/ikon.png",
-  "description": "Kelas, naskah modul, notebook, tugas, checkpoint, SQL, terminal praktikum, dan asisten belajar Bravais untuk Sains Data ITERA, dijalankan di komputer Anda lewat Local Runner.",
-  "version": "0.1.7",
+  "description": "Kelas, naskah modul, notebook, tugas, checkpoint, SQL, terminal praktikum, asisten belajar Bravais, alat bantu menulis LaTeX, dan Berkas saya untuk Sains Data ITERA, dijalankan di komputer Anda lewat Local Runner.",
+  "version": "0.1.8",
   "publisher": "sditera",
   "private": true,
   "license": "UNLICENSED",
@@ -135,6 +135,37 @@
           "markdownDescription": "Gerak avatar di panel Sosial (emoji yang bergoyang dan ilustrasi beranimasi). Bawaannya `selalu`: avatar tetap bergerak walau sistem operasi meminta \"kurangi gerak\", karena di banyak komputer lab dan sesi Remote Desktop permintaan itu menyala dengan sendirinya. **Bila gerak mengganggu Anda** (pusing, sulit berkonsentrasi, atau komputer terasa berat), pilih `mati` untuk menghentikan semua gerak avatar, atau `ikutiSistem` agar mengikuti pengaturan aksesibilitas sistem operasi. Perubahan berlaku seketika. Gerak lain di panel tetap mengikuti sistem operasi, dan panel yang tersembunyi tidak pernah beranimasi."
         }
       }
+    },
+    "configurationDefaults": {
+      "latex-workshop.latex.tools": [
+        {
+          "name": "dsw-latexmk",
+          "command": "latexmk",
+          "args": [
+            "-norc",
+            "-pdf",
+            "-pdflatex=pdflatex -no-shell-escape -interaction=nonstopmode -file-line-error -synctex=1 %O %S",
+            "-outdir=%OUTDIR%",
+            "%DOC%"
+          ],
+          "env": {}
+        }
+      ],
+      "latex-workshop.latex.recipes": [
+        {
+          "name": "DSWorkbench: latexmk (pdflatex, tanpa shell-escape)",
+          "tools": [
+            "dsw-latexmk"
+          ]
+        }
+      ],
+      "latex-workshop.latex.recipe.default": "first",
+      "latex-workshop.latex.build.forceRecipeUsage": true,
+      "latex-workshop.latex.outDir": "%DIR%/build",
+      "latex-workshop.latex.autoBuild.run": "onSave",
+      "latex-workshop.latex.autoClean.run": "never",
+      "latex-workshop.view.pdf.viewer": "tab",
+      "latex-workshop.synctex.afterBuild.enabled": true
     },
     "commands": [
       {
@@ -385,6 +416,96 @@
         "title": "Buka Sosial",
         "category": "DSWorkbench",
         "icon": "$(organization)"
+      },
+      {
+        "command": "dsworkbench.writing.open",
+        "title": "Menulis — Buka panel Menulis",
+        "category": "DSWorkbench",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "dsworkbench.writing.new",
+        "title": "Menulis — Dokumen baru…",
+        "category": "DSWorkbench",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "dsworkbench.writing.compile",
+        "title": "Menulis — Kompilasi",
+        "category": "DSWorkbench",
+        "icon": "$(play)"
+      },
+      {
+        "command": "dsworkbench.writing.preview",
+        "title": "Menulis — Pratinjau PDF",
+        "category": "DSWorkbench",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "dsworkbench.writing.export",
+        "title": "Menulis — Ekspor…",
+        "category": "DSWorkbench",
+        "icon": "$(export)"
+      },
+      {
+        "command": "dsworkbench.writing.exportPdf",
+        "title": "Menulis — Ekspor PDF",
+        "category": "DSWorkbench",
+        "icon": "$(file-pdf)"
+      },
+      {
+        "command": "dsworkbench.writing.exportMarkdown",
+        "title": "Menulis — Ekspor Markdown",
+        "category": "DSWorkbench",
+        "icon": "$(markdown)"
+      },
+      {
+        "command": "dsworkbench.writing.exportZip",
+        "title": "Menulis — Ekspor ZIP proyek",
+        "category": "DSWorkbench",
+        "icon": "$(file-zip)"
+      },
+      {
+        "command": "dsworkbench.writing.install",
+        "title": "Menulis — Pasang mesin LaTeX (TinyTeX)…",
+        "category": "DSWorkbench",
+        "icon": "$(package)"
+      },
+      {
+        "command": "dsworkbench.writing.showOutput",
+        "title": "Menulis — Tampilkan keluaran",
+        "category": "DSWorkbench",
+        "icon": "$(output)"
+      },
+      {
+        "command": "dsworkbench.files.open",
+        "title": "Berkas saya — Buka panel",
+        "category": "DSWorkbench",
+        "icon": "$(cloud)"
+      },
+      {
+        "command": "dsworkbench.files.save",
+        "title": "Simpan ke Berkas saya",
+        "category": "DSWorkbench",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "dsworkbench.files.import",
+        "title": "Impor dari Berkas saya…",
+        "category": "DSWorkbench",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "dsworkbench.files.refresh",
+        "title": "Berkas saya — Segarkan",
+        "category": "DSWorkbench",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "dsworkbench.files.openWeb",
+        "title": "Berkas saya — Buka di web",
+        "category": "DSWorkbench",
+        "icon": "$(link-external)"
       }
     ],
     "viewsContainers": {
@@ -433,6 +554,22 @@
         {
           "id": "dsworkbench.basisData",
           "name": "Basis data",
+          "icon": "media/dsworkbench.svg",
+          "contextualTitle": "DSWorkbench",
+          "visibility": "collapsed"
+        },
+        {
+          "id": "dsworkbench.menulis",
+          "name": "Menulis",
+          "type": "webview",
+          "icon": "media/dsworkbench.svg",
+          "contextualTitle": "DSWorkbench",
+          "visibility": "collapsed"
+        },
+        {
+          "id": "dsworkbench.berkas",
+          "name": "Berkas saya",
+          "type": "webview",
           "icon": "media/dsworkbench.svg",
           "contextualTitle": "DSWorkbench",
           "visibility": "collapsed"
@@ -592,6 +729,22 @@
         {
           "command": "dsworkbench.github.unlink",
           "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.files.save",
+          "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.files.import",
+          "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.files.refresh",
+          "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.files.openWeb",
+          "when": "dsworkbench.masuk"
         }
       ],
       "view/title": [
@@ -654,6 +807,41 @@
           "command": "dsworkbench.gudang.open",
           "when": "view == dsworkbench.basisData && dsworkbench.masuk",
           "group": "navigation@0"
+        },
+        {
+          "command": "dsworkbench.writing.new",
+          "when": "view == dsworkbench.menulis",
+          "group": "navigation@1"
+        },
+        {
+          "command": "dsworkbench.writing.compile",
+          "when": "view == dsworkbench.menulis",
+          "group": "navigation@2"
+        },
+        {
+          "command": "dsworkbench.writing.showOutput",
+          "when": "view == dsworkbench.menulis",
+          "group": "navigation@3"
+        },
+        {
+          "command": "dsworkbench.files.save",
+          "when": "view == dsworkbench.berkas && dsworkbench.masuk",
+          "group": "navigation@1"
+        },
+        {
+          "command": "dsworkbench.files.import",
+          "when": "view == dsworkbench.berkas && dsworkbench.masuk",
+          "group": "navigation@2"
+        },
+        {
+          "command": "dsworkbench.files.refresh",
+          "when": "view == dsworkbench.berkas && dsworkbench.masuk",
+          "group": "navigation@3"
+        },
+        {
+          "command": "dsworkbench.files.openWeb",
+          "when": "view == dsworkbench.berkas && dsworkbench.masuk",
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [
@@ -840,6 +1028,16 @@
           "command": "dsworkbench.sql.runSelection",
           "when": "dsworkbench.masuk && resourceExtname == .sql",
           "group": "navigation@2"
+        },
+        {
+          "command": "dsworkbench.writing.compile",
+          "when": "resourceExtname == .tex",
+          "group": "navigation@1"
+        },
+        {
+          "command": "dsworkbench.writing.preview",
+          "when": "resourceExtname == .tex",
+          "group": "navigation@2"
         }
       ],
       "editor/context": [
@@ -852,6 +1050,18 @@
           "command": "dsworkbench.sql.runFile",
           "when": "dsworkbench.masuk && resourceExtname == .sql",
           "group": "1_dsworkbench@2"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "dsworkbench.files.save",
+          "when": "dsworkbench.masuk && resourceScheme == file",
+          "group": "7_modification@90"
+        },
+        {
+          "command": "dsworkbench.files.import",
+          "when": "dsworkbench.masuk && explorerResourceIsFolder",
+          "group": "7_modification@91"
         }
       ]
     },

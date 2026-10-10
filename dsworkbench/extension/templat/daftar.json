@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "templat": [
+    {
+      "id": "ta-sains-data",
+      "nama": "Tugas akhir Sains Data ITERA",
+      "keterangan": "Format penulisan tugas akhir (kelas tasainsdata): sampul, pengesahan, abstrak, lima bab, daftar pustaka.",
+      "utama": "main.tex"
+    },
+    {
+      "id": "laporan-praktikum",
+      "nama": "Laporan praktikum",
+      "keterangan": "Laporan singkat berbahasa Indonesia: identitas, tujuan, dasar teori, langkah kerja, hasil dan pembahasan, kesimpulan.",
+      "utama": "main.tex"
+    },
+    {
+      "id": "artikel",
+      "nama": "Artikel atau makalah",
+      "keterangan": "Makalah singkat: judul, abstrak, kata kunci, bagian baku, daftar pustaka.",
+      "utama": "main.tex"
+    }
+  ]
+}

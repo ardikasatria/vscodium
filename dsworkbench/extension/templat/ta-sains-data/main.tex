@@ -1,0 +1,43 @@
+% Tugas Akhir Program Studi Sains Data ITERA
+% Kompilasi: pdflatex main.tex (dua kali), atau latexmk -pdf main.tex
+\documentclass{tasainsdata}
+
+\author{Nama Mahasiswa}
+\title{Judul Skripsi Anda}
+
+\begin{document}
+	\onehalfspacing
+	\frontmatter
+	% Halaman awal
+	\masuk{awal/cover-hard}
+	\masuk{awal/cover-soft}
+	\masuk{awal/pengesahan}
+	\masuk{awal/orisinalitas}
+	\masuk{awal/persetujuan-publikasi}
+	\masuk{awal/abstrak}
+	\masuk{awal/abstract}
+	\masuk{awal/motto}
+	\masuk{awal/persembahan}
+	\masuk{awal/kata-pengantar}
+
+	\daftarisi
+	\daftargambar
+	\daftartabel
+	\daftaralgoritma
+
+	% Isi
+	\mainmatter
+	\thispagestyle{myheadings}
+	\pagenumbering{arabic}
+	\masuk{bab/bab1}
+	\masuk{bab/bab2}
+	\masuk{bab/bab3}
+	\masuk{bab/bab4}
+	\masuk{bab/bab5}
+
+	% Akhir
+	\backmatter
+	\addcontentsline{toc}{chapter}{\textbf{DAFTAR PUSTAKA}}
+	\masuk{akhir/daftar-pustaka}
+	%\masuk{akhir/lampiran}
+\end{document}

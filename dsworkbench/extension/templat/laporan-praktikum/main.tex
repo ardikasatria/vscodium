@@ -1,0 +1,103 @@
+% Laporan praktikum — templat DSWorkbench
+% Kompilasi: DSWorkbench: Menulis — Kompilasi (hasil di build/main.pdf)
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[indonesian]{babel}
+\usepackage[left=3cm,right=2.5cm,top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{listings}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{gambar/}}
+\lstset{basicstyle=\ttfamily\small, breaklines=true, frame=single, numbers=left, numberstyle=\tiny}
+
+% Identitas: ganti nilai di bawah ini.
+\newcommand{\matakuliah}{Nama Mata Kuliah}
+\newcommand{\modul}{Modul 1: Judul Modul}
+\newcommand{\namamahasiswa}{Nama Mahasiswa}
+\newcommand{\nim}{1xx45xxxx}
+\newcommand{\kelas}{RA}
+\newcommand{\asisten}{Nama Asisten}
+
+\begin{document}
+
+\begin{center}
+	{\Large\bfseries Laporan Praktikum \matakuliah}\\[1ex]
+	{\large \modul}\\[3ex]
+	\begin{tabular}{ll}
+		Nama    & : \namamahasiswa \\
+		NIM     & : \nim \\
+		Kelas   & : \kelas \\
+		Asisten & : \asisten \\
+		Tanggal & : \today \\
+	\end{tabular}
+\end{center}
+
+\section{Tujuan}
+Tuliskan tujuan praktikum dalam butir yang dapat diperiksa.
+\begin{enumerate}
+	\item Tujuan pertama.
+	\item Tujuan kedua.
+\end{enumerate}
+
+\section{Dasar Teori}
+Ringkas konsep yang dipakai, dengan kata-kata Anda sendiri. Rumus ditulis seperti
+berikut dan dirujuk dengan nomornya, misalnya Persamaan~\ref{eq:rata}.
+\begin{equation}
+	\bar{x} = \frac{1}{n} \sum_{i=1}^{n} x_i
+	\label{eq:rata}
+\end{equation}
+
+\section{Alat dan Data}
+Sebutkan perangkat lunak beserta versinya dan data yang dipakai (sumber, jumlah baris,
+kolom penting).
+
+\section{Langkah Kerja}
+Jelaskan langkah yang Anda lakukan secara berurutan. Potongan kode ditulis seperti ini:
+\begin{lstlisting}[language=Python, caption={Membaca data}]
+import pandas as pd
+
+data = pd.read_csv("data.csv")
+print(data.describe())
+\end{lstlisting}
+
+\section{Hasil dan Pembahasan}
+Sajikan hasil dalam tabel atau gambar, lalu bahas artinya. Contoh tabel ada pada
+Tabel~\ref{tab:ringkasan}.
+\begin{table}[H]
+	\centering
+	\caption{Ringkasan hasil}
+	\label{tab:ringkasan}
+	\begin{tabular}{lrr}
+		\toprule
+		Variabel & Rata-rata & Simpangan baku \\
+		\midrule
+		Tinggi   & 165{,}2   & 7{,}4 \\
+		Berat    & 58{,}9    & 9{,}1 \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+Untuk gambar, simpan berkasnya di folder \texttt{gambar/}, lalu hapus tanda komentar
+pada baris berikut.
+% \begin{figure}[H]
+% 	\centering
+% 	\includegraphics[width=0.7\textwidth]{nama-gambar}
+% 	\caption{Keterangan gambar}
+% 	\label{fig:contoh}
+% \end{figure}
+
+\section{Kesimpulan}
+Jawab tiap tujuan pada Bagian~1 dengan satu atau dua kalimat berdasarkan hasil.
+
+\section*{Daftar Pustaka}
+\begin{enumerate}
+	\item Nama Penulis. (Tahun). \textit{Judul buku atau artikel}. Penerbit.
+\end{enumerate}
+
+\end{document}

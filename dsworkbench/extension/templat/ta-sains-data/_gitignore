@@ -1,0 +1,20 @@
+# Berkas hasil kompilasi LaTeX (dibuat ulang tiap kompilasi)
+build/
+*.aux
+*.log
+*.toc
+*.lof
+*.lot
+*.loa
+*.out
+*.idx
+*.ilg
+*.ind
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.synctex(busy)
+desktop.ini
+.DS_Store

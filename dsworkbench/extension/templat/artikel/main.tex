@@ -1,0 +1,70 @@
+% Artikel atau makalah singkat — templat DSWorkbench
+% Kompilasi: DSWorkbench: Menulis — Kompilasi (hasil di build/main.pdf)
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[indonesian]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{gambar/}}
+
+\title{Judul Artikel yang Singkat dan Jelas}
+\author{Nama Penulis\\
+	\small Program Studi Sains Data, Institut Teknologi Sumatera\\
+	\small \texttt{nama@contoh.ac.id}}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+	Abstrak memuat latar belakang, tujuan, metode, hasil utama, dan kesimpulan dalam satu
+	paragraf, paling banyak 200 kata.
+
+	\medskip
+	\noindent\textbf{Kata kunci:} kata kunci 1, kata kunci 2, kata kunci 3
+\end{abstract}
+
+\section{Pendahuluan}
+Jelaskan masalah yang dikaji, mengapa penting, dan apa yang sudah dikerjakan orang lain
+\cite{penulis2024}. Tutup dengan tujuan tulisan ini.
+
+\section{Metode}
+Uraikan data dan cara kerja dengan cukup rinci agar dapat diulang orang lain. Rumus
+ditulis seperti $y = \beta_0 + \beta_1 x + \varepsilon$ di dalam kalimat, atau dalam
+baris tersendiri:
+\begin{equation}
+	\hat{\beta} = (X^{\top} X)^{-1} X^{\top} y
+	\label{eq:ols}
+\end{equation}
+
+\section{Hasil dan Pembahasan}
+Sajikan temuan utama, lalu bahas artinya. Tabel~\ref{tab:hasil} menunjukkan contoh
+tabel.
+\begin{table}[htbp]
+	\centering
+	\caption{Contoh tabel hasil}
+	\label{tab:hasil}
+	\begin{tabular}{lrr}
+		\toprule
+		Model     & Akurasi & Waktu (detik) \\
+		\midrule
+		Model A   & 0{,}91  & 12 \\
+		Model B   & 0{,}88  & 3 \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\section{Kesimpulan}
+Nyatakan jawaban atas tujuan tulisan dan batas-batasnya.
+
+\begin{thebibliography}{9}
+	\bibitem{penulis2024} Nama Penulis. (2024). Judul artikel. \textit{Nama Jurnal}, 1(2), 10--20.
+\end{thebibliography}
+
+\end{document}

@@ -793,10 +793,12 @@ function periksaUrlUnduhan(alamat, hostDiizinkan, izinkanHttp = false) {
   return u;
 }
 var PESAN_RUSAK = "Berkas unduhan rusak atau diubah (SHA-256 tidak cocok). Tidak ada yang dipasang; coba lagi dengan jaringan lain.";
-function ambil(u, o) {
+function ambil(u, o, dari = 0) {
   return new Promise((selesai, gagal) => {
     const modul = u.protocol === "https:" ? https : http;
-    const req = modul.get(u, { headers: { "User-Agent": "DSWorkbench", Accept: "*/*" }, signal: o.sinyal }, selesai);
+    const kepala = { "User-Agent": "DSWorkbench", Accept: "*/*" };
+    if (dari > 0) kepala["Range"] = `bytes=${dari}-`;
+    const req = modul.get(u, { headers: kepala, signal: o.sinyal }, selesai);
     req.setTimeout(o.batasDiamMs ?? 6e4, () => req.destroy(new GalatUnduh("jaringan", "Server unduhan tidak menjawab.")));
     req.on("error", gagal);
   });
@@ -808,11 +810,36 @@ async function unduhTerverifikasi(o) {
   fs6.mkdirSync(path5.dirname(o.tujuan), { recursive: true });
   fs6.rmSync(o.tujuan, { force: true });
   let berkas;
+  const h = (0, import_node_crypto3.createHash)("sha256");
+  let diterima = 0;
   try {
     if (o.sinyal?.aborted) throw batal();
+    if (o.lanjut) {
+      let ada = 0;
+      try {
+        ada = fs6.statSync(sementara).size;
+      } catch {
+      }
+      if (ada > 0 && ada <= o.ukuran) {
+        await new Promise((selesai, gagal) => {
+          const baca = fs6.createReadStream(sementara);
+          baca.on("data", (b) => h.update(b));
+          baca.on("error", gagal);
+          baca.on("end", () => selesai());
+        });
+        diterima = ada;
+      } else if (ada > 0) fs6.rmSync(sementara, { force: true });
+    } else fs6.rmSync(sementara, { force: true });
+    if (diterima === o.ukuran) {
+      if (h.digest("hex") !== o.sha256.toLowerCase()) throw new GalatUnduh("sha256", PESAN_RUSAK);
+      fs6.renameSync(sementara, o.tujuan);
+      return o.tujuan;
+    }
+    const mulaiDari = diterima;
+    if (mulaiDari > 0) o.progres?.(diterima, o.ukuran);
     let resp;
     for (let alih = 0; ; alih++) {
-      resp = await ambil(u, o);
+      resp = await ambil(u, o, mulaiDari);
       const status = resp.statusCode ?? 0;
       if (![301, 302, 303, 307, 308].includes(status)) break;
       resp.resume();
@@ -829,13 +856,16 @@ async function unduhTerverifikasi(o) {
       }
       u = tujuanAlih;
     }
-    if (resp.statusCode !== 200) {
+    let sambung = false;
+    if (mulaiDari > 0 && resp.statusCode === 206) sambung = true;
+    else if (mulaiDari > 0 && resp.statusCode === 200) {
+      diterima = 0;
+    } else if (resp.statusCode !== 200) {
       resp.resume();
       throw new GalatUnduh("http", `Server unduhan menjawab HTTP ${resp.statusCode}.`);
     }
-    const h = (0, import_node_crypto3.createHash)("sha256");
-    let diterima = 0;
-    berkas = fs6.createWriteStream(sementara, { flags: "w" });
+    const hh = sambung ? h : (0, import_node_crypto3.createHash)("sha256");
+    berkas = fs6.createWriteStream(sementara, { flags: sambung ? "a" : "w" });
     const tulis = berkas;
     await new Promise((selesai, gagal) => {
       tulis.on("error", gagal);
@@ -848,7 +878,7 @@ async function unduhTerverifikasi(o) {
           resp.destroy();
           return;
         }
-        h.update(blok);
+        hh.update(blok);
         if (!tulis.write(blok)) {
           resp.pause();
           tulis.once("drain", () => resp.resume());
@@ -858,13 +888,14 @@ async function unduhTerverifikasi(o) {
       resp.on("end", () => tulis.end(() => selesai()));
     });
     berkas = void 0;
-    if (diterima !== o.ukuran || h.digest("hex") !== o.sha256.toLowerCase()) throw new GalatUnduh("sha256", PESAN_RUSAK);
+    if (diterima !== o.ukuran || hh.digest("hex") !== o.sha256.toLowerCase()) throw new GalatUnduh("sha256", PESAN_RUSAK);
     fs6.renameSync(sementara, o.tujuan);
     return o.tujuan;
   } catch (e) {
     berkas?.destroy();
     if (berkas) await new Promise((r) => berkas.closed ? r() : berkas.once("close", () => r()));
-    fs6.rmSync(sementara, { force: true });
+    const simpan = o.lanjut && !(e instanceof GalatUnduh && (e.kode === "sha256" || e.kode === "ukuran" || e.kode === "url" || e.kode === "alih"));
+    if (!simpan) fs6.rmSync(sementara, { force: true });
     fs6.rmSync(o.tujuan, { force: true });
     if (o.sinyal?.aborted || e?.name === "AbortError") throw batal();
     if (e instanceof GalatUnduh) throw e;

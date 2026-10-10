@@ -1,9 +1,9 @@
 # DSWorkbench
 
-**Versi 0.1.7** · Local Runner 0.4.10
+**Versi 0.1.8** · Local Runner 0.4.10
 
 Kelas, naskah modul, notebook, tugas, checkpoint, SQL, terminal praktikum, asisten belajar
-Bravais, dan teman sekelas — untuk Sains Data ITERA. Semua dijalankan di komputer Anda
+Bravais, teman sekelas, alat bantu menulis LaTeX, dan Berkas saya — untuk Sains Data ITERA. Semua dijalankan di komputer Anda
 lewat Local Runner; server Workbench hanya memegang akun, materi, dan nilai.
 
 ## Mulai

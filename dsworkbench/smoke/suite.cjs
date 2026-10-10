@@ -394,6 +394,58 @@ async function run() {
       await c.update("sound.volume", void 0, G);
       hasil["suara"] = { awal, terkirim, mati, klikMati, terkirimMati, nyala, akhir: su.pengaturan(), htmlSosial: api.uji.sosial.keadaan().html };
     }
+    if (api.uji.menulis && env2["DSW_LUAR"]) {
+      const mn = api.uji.menulis;
+      const luar2 = env2["DSW_LUAR"];
+      const awal = mn.keadaan().keadaan;
+      const utama = await mn.buat("ta-sains-data", luar2, "Tugas Akhir Uji");
+      const editorAktif = vscode.window.activeTextEditor?.document.uri.fsPath;
+      const timpa = await mn.buat("artikel", luar2, "Tugas Akhir Uji").then(
+        () => "TERTIMPA",
+        (e) => e instanceof Error ? e.message : String(e)
+      );
+      const pdfTanpaKompilasi = await mn.ekspor("pdf", utama, path.join(luar2, "x.pdf")).then(
+        () => "ADA",
+        (e) => e instanceof Error ? e.message : String(e)
+      );
+      fs.mkdirSync(path.join(path.dirname(utama), "build"), { recursive: true });
+      fs.writeFileSync(path.join(path.dirname(utama), "build", "main.pdf"), "%PDF-uji");
+      fs.writeFileSync(path.join(path.dirname(utama), "build", "main.log"), "log");
+      fs.writeFileSync(path.join(path.dirname(utama), "main.aux"), "aux");
+      const teksZip = await mn.ekspor("zip", utama, path.join(luar2, "ta-uji.zip"));
+      const teksMd = await mn.ekspor("md", utama, path.join(luar2, "ta-uji.md"));
+      const teksPdf = await mn.ekspor("pdf", utama, path.join(luar2, "ta-uji.pdf"));
+      await mn.fokus();
+      await sampai(() => mn.keadaan().terpasang, 15e3, "view Menulis tidak terpasang");
+      const ditolak = [await mn.pesan({ tindakan: "kompilasi", berkas: "/etc/passwd" }), await mn.pesan({ tindakan: "buka-proyek", indeks: 99 }), await mn.pesan({ tindakan: "jalankan", perintah: "rm -rf" })];
+      const segarkan = await mn.pesan({ tindakan: "segarkan" });
+      const k = mn.keadaan();
+      hasil["menulis"] = { awal, templat: mn.templat(), utama, editorAktif, timpa, pdfTanpaKompilasi, teksZip, teksMd, teksPdf, ditolak, segarkan, aktif: k.keadaan.aktif, proyek: k.keadaan.proyek, panel: { terpasang: k.terpasang, html: k.html } };
+    }
+    if (api.uji.berkas) {
+      const bk = api.uji.berkas;
+      const ws = env2["DSW_WS_COURSE"];
+      const awal = await bk.muat();
+      fs.writeFileSync(path.join(ws, "catatan-rumah.csv"), "nim,nilai\n122450001,90\n");
+      fs.mkdirSync(path.join(ws, "dataset-kecil", "sub"), { recursive: true });
+      fs.writeFileSync(path.join(ws, "dataset-kecil", "a.csv"), "a\n1\n");
+      fs.writeFileSync(path.join(ws, "dataset-kecil", "sub", "b.csv"), "b\n2\n");
+      const simpan = await bk.simpan([path.join(ws, "catatan-rumah.csv"), path.join(ws, "dataset-kecil")]);
+      const setelah = await bk.muat() ?? [];
+      const cari = (nama) => setelah.findIndex((o) => o.nama === nama);
+      const tujuan = path.join(ws, "impor");
+      const imporNama = await bk.impor(cari("../../../keluar-dari-folder.txt"), tujuan, true);
+      const imporLagi = await bk.impor(cari("../../../keluar-dari-folder.txt"), tujuan, true);
+      const imporJebakan = await bk.impor(cari("jebakan.zip"), tujuan, true);
+      const imporZip = await bk.impor(cari("dataset-kecil.zip"), tujuan, true);
+      await bk.impor(cari("catatan-rumah.csv"), tujuan, false);
+      await bk.fokus();
+      await sampai(() => bk.keadaan().terpasang, 15e3, "view Berkas saya tidak terpasang");
+      const ditolak = [await bk.pesan({ tindakan: "impor", indeks: 0, id: "awal-1" }), await bk.pesan({ tindakan: "impor", indeks: 999 }), await bk.pesan({ tindakan: "hapus", indeks: 0 })];
+      await sampai(() => bk.keadaan().html.includes('data-tindakan="impor"'), 15e3, "daftar Berkas saya tidak tampil di panel");
+      const k = bk.keadaan();
+      hasil["berkasSaya"] = { awal, simpan, setelah, imporNama, imporLagi, imporJebakan, imporZip, ditolak, panel: { terpasang: k.terpasang, html: k.html } };
+    }
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
     await tidur(1500);
     hasil["statusAkhir"] = api.uji.statusAgent();

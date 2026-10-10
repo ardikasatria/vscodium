@@ -246,6 +246,14 @@ function jawabSosial(req, res, badan, jawab, token) {
 const lessonSelesai = [];
 const sha256 = (b) => createHash('sha256').update(b).digest('hex');
 const unggahan = {}; // objectId → { sha256, panjang }
+// Berkas saya (0.1.8): objek `user_archive` milik akun uji. Dua sudah ada di "server": satu bernama
+// berbahaya, satu ZIP berisi jalur keluar folder — keduanya harus aman saat diimpor.
+const { buatZip: buatZipUji } = await import('./lib/zip.mjs');
+const arsip = new Map([
+	['awal-1', { nama: '../../../keluar-dari-folder.txt', tipe: 'text/plain', data: Buffer.from('isi berkas bernama berbahaya') }],
+	['awal-2', { nama: 'jebakan.zip', tipe: 'application/zip', data: buatZipUji([{ nama: 'aman.txt', isi: Buffer.from('aman') }, { nama: '../../jebakan-keluar.txt', isi: Buffer.from('keluar') }]) }],
+]);
+const publikArsip = (id, o) => ({ id, displayFilename: o.nama, contentType: o.tipe, sizeBytesVerified: o.data.length, sha256: sha256(o.data), status: 'available', purpose: 'user_archive', createdAt: '2026-10-10T01:00:00+00:00' });
 const relayHasil = new Map();
 let gitDiperiksa = false;
 const lampiran = [];
@@ -436,6 +444,36 @@ const server = http.createServer((req, res) => {
 		const percobaan = `/api/courses/${COURSE}/assignments/a-m02/attempts`;
 		if (kunci === `GET ${percobaan}`) return jawab(200, { attempts: [] });
 		if (kunci === `POST ${percobaan}`) return jawab(201, { attempt: { id: 'att-uji', assignmentId: 'a-m02', status: 'draft', artifacts: [], answers: {} } });
+		// -- Berkas saya ---------------------------------------------------------------
+		if (kunci === 'GET /api/me/objects') {
+			const objects = [...arsip.entries()].filter(([, o]) => o.data).map(([id, o]) => publikArsip(id, o));
+			const usedBytes = objects.reduce((a, o) => a + o.sizeBytesVerified, 0);
+			return jawab(200, { objects, usage: { usedBytes, limitBytes: 1024 ** 3, remainingBytes: 1024 ** 3 - usedBytes } });
+		}
+		if (kunci === 'POST /api/objects/upload/reserve' && badan?.purpose === 'user_archive') {
+			const objectId = `ars-${arsip.size + 1}`;
+			arsip.set(objectId, { nama: badan.displayFilename, tipe: badan.contentType, pesan: badan });
+			return jawab(201, { sessionId: `ses-${objectId}`, objectId, expiresAt: 'x' });
+		}
+		let ma;
+		if ((ma = /^POST \/api\/objects\/upload\/ses-(ars-\d+)\/initiate$/.exec(kunci))) return jawab(200, { sessionId: `ses-${ma[1]}`, method: 'PUT', url: `localfs://put/${ma[1]}`, headers: {}, maxBytes: 50 * 1024 * 1024 });
+		if ((ma = /^PUT \/api\/objects\/local\/(ars-\d+)$/.exec(kunci)) && arsip.has(ma[1])) {
+			arsip.get(ma[1]).data = byte;
+			res.statusCode = 204;
+			return res.end();
+		}
+		if ((ma = /^POST \/api\/objects\/upload\/ses-(ars-\d+)\/finalize$/.exec(kunci))) {
+			if (arsip.get(ma[1])?.data?.length !== badan.sizeBytes) return jawab(400, { error: 'permintaan_tidak_sah', message: 'Ukuran tidak cocok.' });
+			return jawab(200, { object: publikArsip(ma[1], arsip.get(ma[1])) });
+		}
+		if ((ma = /^POST \/api\/objects\/((?:ars|awal)-\d+)\/download-grant$/.exec(kunci)) && arsip.get(ma[1])?.data) {
+			return jawab(200, { objectId: ma[1], method: 'GET', url: `/api/objects/local/${ma[1]}`, expiresAt: 'x', headers: {} });
+		}
+		if ((ma = /^GET \/api\/objects\/local\/((?:ars|awal)-\d+)$/.exec(kunci)) && arsip.get(ma[1])?.data) {
+			res.statusCode = 200;
+			res.setHeader('Content-Type', 'application/octet-stream');
+			return res.end(arsip.get(ma[1]).data);
+		}
 		if (kunci === 'POST /api/objects/upload/reserve') {
 			const objectId = `obj-${Object.keys(unggahan).length + 1}`;
 			unggahan[objectId] = { nama: badan.displayFilename };
@@ -654,7 +692,7 @@ try {
 	const keluar = await new Promise((selesai) => {
 		const anak = spawn(KODE, argumen, {
 			stdio: ['ignore', 'pipe', 'pipe'],
-			env: { ...process.env, DSW_DATA_ROOT: folderRuntime, DSW_OUT: out, DSW_SERVER: SERVER, DSW_TOKEN: TOKEN, DSW_USERNAME: USERNAME, DSW_COURSE: COURSE, DSW_WS_COURSE: wsCourse, DSW_NOTEBOOK: NAMA_NB, DSW_NOTEBOOK2: NAMA_NB2, DSW_NOTEBOOK_LUAR: nbLuar, DSW_MODUL2: MODUL2, DSW_UJI_VSIX: vsixUji, DSW_COURSE_PGD: COURSE_PGD, DSW_MODUL_PGD: MODUL_PGD },
+			env: { ...process.env, DSW_LUAR: luarDir, DSW_DATA_ROOT: folderRuntime, DSW_OUT: out, DSW_SERVER: SERVER, DSW_TOKEN: TOKEN, DSW_USERNAME: USERNAME, DSW_COURSE: COURSE, DSW_WS_COURSE: wsCourse, DSW_NOTEBOOK: NAMA_NB, DSW_NOTEBOOK2: NAMA_NB2, DSW_NOTEBOOK_LUAR: nbLuar, DSW_MODUL2: MODUL2, DSW_UJI_VSIX: vsixUji, DSW_COURSE_PGD: COURSE_PGD, DSW_MODUL_PGD: MODUL_PGD },
 		});
 		let log = '';
 		anak.stdout.on('data', (d) => (log += d));
@@ -989,6 +1027,123 @@ try {
 		assert.ok(b.html.includes('id="masukan"') && b.html.includes('/media/bravais/bravais.png'));
 	});
 
+	if (h.menulis) {
+		const mn = h.menulis;
+		periksa('Menulis: perintah palet dan view terdaftar; mesin "belum dipasang" tanpa membuat folder runtime; tiga templat dibundel', () => {
+			for (const p of ['writing.open', 'writing.new', 'writing.compile', 'writing.preview', 'writing.export', 'writing.exportPdf', 'writing.exportMarkdown', 'writing.exportZip', 'writing.install']) assert.ok(h.perintah.includes(`dsworkbench.${p}`), p);
+			assert.deepEqual(mn.templat, ['ta-sains-data', 'laporan-praktikum', 'artikel']);
+			assert.equal(mn.awal.mesin.keadaan, 'belum_dipasang');
+			assert.equal(mn.awal.lab, false);
+			assert.equal(fs.existsSync(folderRuntime), false, 'folder runtime tidak dibuat oleh alat Menulis');
+		});
+		periksa('Menulis: "Dokumen baru" dari templat TA membuat proyek utuh di folder NON-mata-kuliah, membuka main.tex, dan tidak menimpa', () => {
+			const akar = path.join(luarDir, 'Tugas Akhir Uji');
+			assert.equal(nj(nyata(mn.utama)), nj(nyata(path.join(akar, 'main.tex'))));
+			assert.equal(nj(nyata(mn.editorAktif)), nj(nyata(path.join(akar, 'main.tex'))), 'main.tex dibuka di editor');
+			for (const b of ['main.tex', 'tasainsdata.cls', '.gitignore', 'README.md', 'awal/abstrak.tex', 'bab/bab1.tex', 'bab/bab5.tex', 'akhir/daftar-pustaka.tex', 'gambar/LogoITERA.png']) assert.ok(fs.statSync(path.join(akar, b)).isFile(), b);
+			assert.ok(!fs.existsSync(path.join(akar, 'contoh')) && !fs.existsSync(path.join(akar, 'main.pdf')) && !fs.existsSync(path.join(akar, '_gitignore')));
+			assert.ok(fs.readFileSync(path.join(akar, 'gambar', 'LogoITERA.png')).equals(fs.readFileSync(path.join(akarMuat, 'templat', 'ta-sains-data', 'gambar', 'LogoITERA.png'))));
+			assert.match(mn.timpa, /sudah berisi berkas/);
+			assert.equal(mn.aktif.nama, 'main.tex');
+			assert.deepEqual(mn.proyek.map((p) => [p.judul, p.ada]), [['Tugas Akhir Uji', true]]);
+			// Folder itu bukan mata kuliah: tidak ada amplop/permintaan server untuk membuat proyek.
+			assert.ok(!nj(nyata(akar)).startsWith(nj(nyata(ws))), 'di luar folder kerja mata kuliah');
+		});
+		periksa('Menulis: ekspor ZIP (sumber + gambar, tanpa berkas bantu/tersembunyi) dan Markdown (jumlah yang tidak dikonversi dilaporkan) berjalan tanpa mesin LaTeX', () => {
+			const zip = fs.readFileSync(path.join(luarDir, 'ta-uji.zip'));
+			assert.equal(zip.readUInt32LE(0), 0x04034b50);
+			const nama = [];
+			for (let i = zip.length - 22, p = zip.readUInt32LE(i + 16), n = zip.readUInt16LE(i + 10); n > 0; n--) {
+				const pj = zip.readUInt16LE(p + 28);
+				nama.push(zip.subarray(p + 46, p + 46 + pj).toString('utf8'));
+				p += 46 + pj + zip.readUInt16LE(p + 30) + zip.readUInt16LE(p + 32);
+			}
+			for (const b of ['main.tex', 'tasainsdata.cls', 'bab/bab2.tex', 'gambar/LogoITERA.png', 'README.md']) assert.ok(nama.includes(`Tugas Akhir Uji/${b}`), b);
+			assert.ok(!nama.some((x) => /\.(aux|log|gz)$/.test(x) || x.split('/').some((b) => b.startsWith('.')) || x.includes('/build/')), nama.join(' '));
+			assert.ok(nama.includes('Tugas Akhir Uji/main.pdf'), 'PDF terakhir (build/main.pdf) ikut');
+			assert.match(mn.teksZip, /^ZIP proyek disimpan \(22 berkas, termasuk main\.pdf\)/);
+			const md = fs.readFileSync(path.join(luarDir, 'ta-uji.md'), 'utf8');
+			assert.match(md, /^# Judul Skripsi Anda\n/);
+			assert.ok(md.includes('\n# PENDAHULUAN\n') && md.includes('\n## Latar Belakang\n') && md.includes('$$\n\\begin{aligned}'));
+			assert.match(mn.teksMd, /Markdown disimpan: .*ta-uji\.md\. \d+ bagian tidak dapat dikonversi dan ditinggalkan sebagai kode LaTeX: /);
+			assert.match(mn.teksPdf, /^PDF disimpan: /);
+			assert.equal(fs.readFileSync(path.join(luarDir, 'ta-uji.pdf'), 'utf8'), '%PDF-uji');
+			assert.match(mn.pdfTanpaKompilasi, /PDF belum ada\. Kompilasi dokumen lebih dulu\./);
+		});
+		periksa('Menulis: view webview ber-CSP ketat, tanpa jalur ke panel selain tindakan tetap; pesan dengan argumen liar ditolak', () => {
+			assert.equal(mn.panel.terpasang, true);
+			assert.match(mn.panel.html, /Content-Security-Policy" content="default-src 'none'; [^"]*connect-src 'none'/);
+			assert.match(mn.panel.html, /data-tindakan="baru"/);
+			assert.match(mn.panel.html, /Proyek terakhir/);
+			assert.match(mn.panel.html, /Tugas Akhir Uji/);
+			assert.match(mn.panel.html, /Mesin LaTeX \(TinyTeX\): belum dipasang/);
+			assert.ok(!mn.panel.html.includes(TOKEN));
+			assert.deepEqual(mn.ditolak, ['ditolak', 'ditolak', 'ditolak']);
+			assert.equal(mn.segarkan, 'segarkan');
+		});
+	} else {
+		dilewati.push('Menulis: ekstensi yang diuji belum punya kait uji (versi lama)');
+	}
+	if (h.berkasSaya) {
+		const bk = h.berkasSaya;
+		const wsNyata = nyata(wsCourse);
+		periksa('Berkas saya: daftar + kuota dari server; perintah, view, dan menu konteks Explorer terdaftar', () => {
+			for (const p of ['files.open', 'files.save', 'files.import', 'files.refresh', 'files.openWeb']) assert.ok(h.perintah.includes(`dsworkbench.${p}`), p);
+			assert.deepEqual(bk.awal.map((o) => o.nama), ['../../../keluar-dari-folder.txt', 'jebakan.zip']);
+			assert.ok(permintaan.some((p) => p.metode === 'GET' && p.jalur === '/api/me/objects' && p.otorisasi === `Bearer ${TOKEN}`));
+		});
+		periksa('Berkas saya: "Simpan ke Berkas saya" — berkas apa adanya, folder kecil di-ZIP; batas dan kuota server disebut SEBELUM mengunggah', () => {
+			assert.deepEqual(bk.simpan.tersimpan, ['catatan-rumah.csv', 'dataset-kecil.zip']);
+			assert.equal(bk.simpan.pesan, undefined);
+			assert.match(bk.simpan.ditanya[0], /^catatan-rumah\.csv \| \d+ B$/);
+			assert.match(bk.simpan.ditanya[1], /^dataset-kecil\.zip \| folder, 2 berkas, ZIP /);
+			assert.match(bk.simpan.ditanya[2], /^Sisa kuota 1\.00 GB dari 1\.00 GB; batas satu berkas 50\.0 MB\. Jumlah yang diunggah /);
+			const csv = arsip.get('ars-3');
+			assert.equal(csv.data.toString('utf8'), 'nim,nilai\n122450001,90\n');
+			assert.deepEqual([csv.pesan.purpose, csv.pesan.classification, csv.pesan.logicalBucket, csv.pesan.contentType, csv.pesan.displayFilename], ['user_archive', 'sensitive_academic', 'academic_private', 'text/csv', 'catatan-rumah.csv']);
+			assert.equal(arsip.get('ars-4').data.readUInt32LE(0), 0x04034b50, 'folder diunggah sebagai ZIP');
+			const urut = permintaan.map((p) => `${p.metode} ${p.jalur}`);
+			const iDaftar = urut.indexOf('GET /api/me/objects');
+			const iPesan = urut.indexOf('POST /api/objects/upload/ses-ars-3/initiate');
+			assert.ok(iDaftar >= 0 && iDaftar < iPesan, 'kuota diminta sebelum unggah');
+			assert.deepEqual(bk.setelah.map((o) => o.nama), ['../../../keluar-dari-folder.txt', 'jebakan.zip', 'catatan-rumah.csv', 'dataset-kecil.zip']);
+		});
+		periksa('Berkas saya: "Impor" — nama berbahaya dari server disanitasi dan tetap di folder tujuan; tidak menimpa; ZIP sendiri diekstrak; ZIP berjalur keluar ditolak utuh', () => {
+			const tujuan = path.join(wsNyata, 'impor');
+			// Nama `../../../keluar-dari-folder.txt` → berkas biasa di dalam folder tujuan.
+			assert.equal(nj(nyata(bk.imporNama.berkas)), nj(path.join(tujuan, 'keluar-dari-folder.txt')));
+			assert.equal(fs.readFileSync(path.join(tujuan, 'keluar-dari-folder.txt'), 'utf8'), 'isi berkas bernama berbahaya');
+			// Diimpor dua kali: yang kedua bernama lain, yang pertama utuh.
+			assert.equal(path.basename(bk.imporLagi.berkas), 'keluar-dari-folder (2).txt');
+			for (const luar of [path.join(ws, 'keluar-dari-folder.txt'), path.join(tmp, 'keluar-dari-folder.txt'), path.join(path.dirname(tmp), 'keluar-dari-folder.txt')]) assert.equal(fs.existsSync(luar), false, luar);
+			// ZIP berisi `../../jebakan-keluar.txt`: berkas ZIP tersimpan, TIDAK ada yang diekstrak.
+			assert.equal(path.basename(bk.imporJebakan.berkas), 'jebakan.zip');
+			assert.match(bk.imporJebakan.ditolak, /Arsip ditolak: memuat jalur yang tidak aman/);
+			assert.equal(bk.imporJebakan.ekstrak, undefined);
+			assert.equal(fs.existsSync(path.join(tujuan, 'jebakan')), false);
+			for (const luar of [path.join(wsNyata, 'jebakan-keluar.txt'), path.join(ws, 'jebakan-keluar.txt'), path.join(tujuan, 'aman.txt')]) assert.equal(fs.existsSync(luar), false, luar);
+			// ZIP buatan sendiri (folder dataset): diekstrak ke folder baru, isinya sama.
+			assert.equal(bk.imporZip.jumlahEkstrak, 2);
+			assert.equal(nj(nyata(bk.imporZip.ekstrak)), nj(path.join(tujuan, 'dataset-kecil')));
+			assert.equal(fs.readFileSync(path.join(tujuan, 'dataset-kecil', 'dataset-kecil', 'a.csv'), 'utf8'), 'a\n1\n');
+			assert.equal(fs.readFileSync(path.join(tujuan, 'dataset-kecil', 'dataset-kecil', 'sub', 'b.csv'), 'utf8'), 'b\n2\n');
+			assert.equal(fs.readFileSync(path.join(tujuan, 'catatan-rumah.csv'), 'utf8'), 'nim,nilai\n122450001,90\n');
+			// Unduhan lewat alamat yang diberi server untuk objek itu, dengan token; tidak ada host lain.
+			assert.ok(permintaan.some((p) => p.metode === 'POST' && p.jalur === '/api/objects/awal-1/download-grant'));
+			assert.ok(permintaan.filter((p) => /^\/api\/objects\/local\/(ars|awal)-/.test(p.jalur)).every((p) => p.otorisasi === `Bearer ${TOKEN}`));
+		});
+		periksa('Berkas saya: view webview — nama dari server di-escape, id objek dan token tidak sampai ke panel, pesan liar ditolak', () => {
+			assert.equal(bk.panel.terpasang, true);
+			assert.match(bk.panel.html, /connect-src 'none'/);
+			assert.match(bk.panel.html, /\.\.\/\.\.\/\.\.\/keluar-dari-folder\.txt/);
+			assert.match(bk.panel.html, /data-tindakan="impor" data-indeks="0"/);
+			assert.match(bk.panel.html, /Terpakai .* dari 1\.00 GB/);
+			assert.ok(!bk.panel.html.includes(TOKEN) && !/awal-1|ars-3/.test(bk.panel.html));
+			assert.deepEqual(bk.ditolak, ['ditolak', 'ditolak', 'ditolak']);
+		});
+	} else {
+		dilewati.push('Berkas saya: ekstensi yang diuji belum punya kait uji (versi lama)');
+	}
 	periksa('suara panel: bawaan nyala 0,35 (seperti web); <audio> lokal + media-src lokal saja di keempat panel; Bravais berpikir berbunyi; pengaturan berlaku tanpa memuat ulang', () => {
 		const s = h.suara;
 		assert.deepEqual(s.awal, { aktif: true, volume: 0.35 });

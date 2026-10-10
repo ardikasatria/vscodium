@@ -1,0 +1,10 @@
+# Hasil kompilasi LaTeX (dibuat ulang tiap kompilasi)
+build/
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+.DS_Store

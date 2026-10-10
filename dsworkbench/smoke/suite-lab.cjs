@@ -89,6 +89,30 @@ async function run() {
       const beranda = await api.uji.beranda();
       hasil["beranda"] = { pita: beranda.html.includes("Mode lab aktif"), tombolKeluar: beranda.html.includes('data-tindakan="keluar"'), lab: beranda.model?.lab };
       hasil["statusView"] = api.uji.lingkungan().status;
+      if (api.uji.menulis && api.uji.berkas) {
+        const mn = api.uji.menulis;
+        const bk = api.uji.berkas;
+        const ws = env2["DSW_WS_COURSE"];
+        const utama = await mn.buat("artikel", ws, "makalah-lab");
+        await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+        const daftar = await bk.muat() ?? [];
+        const folderLuar = path.join(path.dirname(ws), "luar-ruang-kerja");
+        const imporLuar = await bk.impor(0, folderLuar, false).then(
+          () => "DIIMPOR",
+          (e) => e instanceof Error ? e.message : String(e)
+        );
+        const imporDalam = (await bk.impor(0, path.join(ws, "data"), false)).berkas;
+        hasil["alat"] = {
+          menulisLab: mn.keadaan().keadaan.lab,
+          utama,
+          proyekSaatMasuk: mn.keadaan().keadaan.proyek.map((p) => p.judul),
+          berkasSaatMasuk: daftar.map((o) => o.nama),
+          folderLuar,
+          imporLuar,
+          imporDalam,
+          kunciSaatMasuk: (await lab.tersimpan()).kunci
+        };
+      }
       const uri = vscode.Uri.file(path.join(env2["DSW_WS_COURSE"], "catatan-lab.txt"));
       const doc = await vscode.workspace.openTextDocument(uri);
       await vscode.window.showTextDocument(doc, { preview: false });
@@ -111,6 +135,14 @@ async function run() {
         terminal: vscode.window.terminals.length,
         agent: api.uji.statusAgent()
       };
+      if (hasil["alat"] && api.uji.menulis && api.uji.berkas) {
+        const k = api.uji.berkas.keadaan();
+        hasil["alat"]["sesudah"] = {
+          proyek: api.uji.menulis.keadaan().keadaan.proyek.map((p) => p.judul),
+          daftarBerkas: k.keadaan.daftar !== void 0,
+          htmlBerkasMemuatNama: k.html.includes("dataset-rumah.csv")
+        };
+      }
     } else if (tahap === "paksa") {
       tulis();
       await tidur(12e4);

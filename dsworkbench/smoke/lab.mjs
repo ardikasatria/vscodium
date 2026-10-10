@@ -162,6 +162,16 @@ const server = http.createServer((req, res) => {
 			return jawab(200, { devices: [...perangkat].map(([id, d]) => ({ id, name: id, state: d.dicabut ? 'revoked' : 'offline', revokedAt: d.dicabut ? new Date().toISOString() : null })) });
 		}
 		if (k === 'GET /api/catalog/courses') return jawab(200, { courses: [] });
+		// Berkas saya (0.1.8): satu berkas milik akun uji.
+		if (k === 'GET /api/me/objects') {
+			return jawab(200, { objects: [{ id: 'awal-1', displayFilename: 'dataset-rumah.csv', contentType: 'text/csv', sizeBytesVerified: 8, status: 'available', purpose: 'user_archive', createdAt: '2026-10-10T01:00:00+00:00' }], usage: { usedBytes: 8, limitBytes: 1024 ** 3, remainingBytes: 1024 ** 3 - 8 } });
+		}
+		if (k === 'POST /api/objects/awal-1/download-grant') return jawab(200, { objectId: 'awal-1', method: 'GET', url: '/api/objects/local/awal-1', expiresAt: 'x', headers: {} });
+		if (k === 'GET /api/objects/local/awal-1') {
+			res.statusCode = 200;
+			res.setHeader('Content-Type', 'application/octet-stream');
+			return res.end('a,b\n1,2\n');
+		}
 		if (k === 'GET /api/me/tasks') return jawab(200, { tasks: [] });
 		if (k === 'GET /api/me/announcements') return jawab(200, { announcements: [] });
 		if (k === 'POST /api/relay/dispatch') {
@@ -601,6 +611,25 @@ try {
 		assert.ok(penjaga().some((p) => p.peristiwa === 'dilupakan' && p.alasan === 'menganggur'), 'penjaga melupakan token saat jendela keluar');
 	});
 
+	if (m.alat) {
+		periksa('mode lab — Menulis dan Berkas saya: proyek terakhir hanya di memori, impor hanya ke folder kerja, dan keduanya dikosongkan saat keluar tanpa kunci penyimpanan tertinggal', () => {
+			const a = m.alat;
+			assert.equal(a.menulisLab, true);
+			assert.deepEqual(a.proyekSaatMasuk, ['makalah-lab']);
+			assert.ok(fs.existsSync(path.join(a.utama)), 'proyek menulis dibuat di folder kerja');
+			assert.deepEqual(a.berkasSaatMasuk, ['dataset-rumah.csv']);
+			assert.match(a.imporLuar, /Di komputer lab, berkas hanya dapat diimpor ke folder kerja yang sedang terbuka/);
+			assert.equal(fs.existsSync(path.join(a.folderLuar, 'dataset-rumah.csv')), false, 'tidak ada yang ditulis di luar folder kerja');
+			assert.equal(fs.readFileSync(a.imporDalam, 'utf8'), 'a,b\n1,2\n');
+			assert.ok(!a.kunciSaatMasuk.some((k) => k.startsWith('dsworkbench.menulis.')), 'mode lab tidak menulis kunci Menulis');
+			// Setelah keluar (menganggur): daftar berkas dan proyek terakhir hilang dari memori jendela; berkas pengguna tetap ada.
+			assert.deepEqual(a.sesudah, { proyek: [], daftarBerkas: false, htmlBerkasMemuatNama: false });
+			assert.ok(!m.menganggur.tersimpan.kunci.some((k) => k.startsWith('dsworkbench.menulis.')));
+			assert.ok(fs.existsSync(a.imporDalam) && fs.existsSync(a.utama), 'folder kerja mahasiswa tidak dihapus');
+		});
+	} else {
+		dilewati.push('mode lab — Menulis/Berkas saya: ekstensi yang diuji belum punya kait uji (versi lama)');
+	}
 	if (m.jejakKini) {
 		periksa('celah pembersihan mode lab tertutup: pilihan server SQL dan NILAI variabel psql (kunci `dsw.sql.*` lama maupun `dsworkbench.sql.*`), pilihan panel Pergudangan Data, dan kunci berawalan lain ikut terhapus saat keluar — di globalState dan workspaceState', () => {
 			const j = m.jejakKini;

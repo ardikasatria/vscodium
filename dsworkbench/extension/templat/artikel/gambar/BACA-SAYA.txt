@@ -1,0 +1,3 @@
+Taruh gambar (PNG, JPG, PDF) di folder ini, lalu panggil dari main.tex:
+
+    \includegraphics[width=0.7\textwidth]{nama-gambar}
