@@ -1,7 +1,7 @@
 # DSWorkbench — ekstensi siap tanam
 
 Hasil bangun `apps/ide/extension` (ekstensi `sditera.dsworkbench` 0.1.0).
-Local Runner bawaan: 0.4.10 @ bc78310.
+Local Runner bawaan: 0.4.10 @ 74bae10.
 
 ## Menanam ke aplikasi bermerek (fork skrip VSCodium)
 

@@ -158,7 +158,16 @@ async function run() {
       keluaran: docLuar.cellAt(0).outputs.map((o) => o.items.map((i) => Buffer.from(i.data).toString()))
     };
     const siap = await api.uji.siapkanBerkasModul(env2["DSW_COURSE"], env2["DSW_MODUL2"], true);
-    await sampai(() => vscode.window.activeNotebookEditor?.notebook.uri.fsPath === siap.starter, 2e4, "notebook starter tidak terbuka");
+    const jalurNyata = (j) => {
+      if (!j) return "";
+      let n = j;
+      try {
+        n = fs.realpathSync.native(j);
+      } catch {
+      }
+      return process.platform === "win32" ? n.toLowerCase() : n;
+    };
+    await sampai(() => jalurNyata(vscode.window.activeNotebookEditor?.notebook.uri.fsPath) === jalurNyata(siap.starter), 2e4, "notebook starter tidak terbuka");
     hasil["siapkan"] = {
       hasil: siap.hasil,
       starter: siap.starter,

@@ -203,7 +203,7 @@ jobs:
           chmod +x "${ASET}"
           mkdir appimage && cd appimage
           "${ASET}" --appimage-extract > /dev/null
-          PRODUK="$( find squashfs-root -path '*/resources/app/product.json' -not -path '*/node_modules/*' | head -n 1 )"
+          PRODUK="$( find -L squashfs-root -path '*/resources/app/product.json' -not -path '*/node_modules/*' | head -n 1 )"
           [[ -f "${PRODUK}" && -x squashfs-root/AppRun ]] || { echo "isi AppImage tidak seperti dugaan" >&2; ls -la squashfs-root >&2; exit 1; }
           {
             echo "APP=${PWD}/squashfs-root/AppRun"
