@@ -34,7 +34,7 @@
 	// -- avatar: PNG dari cache ekstensi, inisial bila tidak ada; Lottie hanya untuk yang tampak --
 	function avatar(a, opsi) {
 		const o = opsi || {};
-		const akar = buat('span', `avatar${o.kecil ? ' avatar--kecil' : ''}`);
+		const akar = buat('span', `avatar${o.kecil ? ' avatar--kecil' : ''}${o.gerak ? ' gerak' : ''}`);
 		const gambar = buat('span', 'avatar__gambar');
 		gambar.setAttribute('aria-hidden', 'true');
 		if (a && typeof a.uri === 'string' && a.uri) {
@@ -45,6 +45,7 @@
 				img.remove();
 				gambar.textContent = a.inisial || '?';
 			});
+			if (typeof a.mood === 'string' && /^[a-z-]{1,40}$/.test(a.mood)) img.setAttribute('data-mood', a.mood);
 			img.src = a.uri;
 			gambar.appendChild(img);
 			if (a.animasi) {
@@ -173,7 +174,7 @@
 		b.setAttribute('data-tindakan', 'buka');
 		b.setAttribute('data-id', t.id);
 		b.setAttribute('data-tanpa-jeda', '');
-		b.appendChild(avatar(t.avatar, { titik: titik(t), lencana: t.belumDibaca }));
+		b.appendChild(avatar(t.avatar, { titik: titik(t), lencana: t.belumDibaca, gerak: t.daring }));
 		const teks = buat('span', 'teman__teks');
 		const atas = buat('span', 'teman__atas');
 		atas.appendChild(buat('span', 'teman__nama', t.nama));
@@ -267,7 +268,7 @@
 		const tandaAvatar = JSON.stringify(k.diri.avatar);
 		if (el('diri-avatar').getAttribute('data-tanda') !== tandaAvatar) {
 			el('diri-avatar').setAttribute('data-tanda', tandaAvatar);
-			ganti(el('diri-avatar'), [avatar(k.diri.avatar, {})]);
+			ganti(el('diri-avatar'), [avatar(k.diri.avatar, { gerak: true })]);
 		}
 		if (k.diri.teksStatus !== teksStatusServer) {
 			teksStatusServer = k.diri.teksStatus;
@@ -513,7 +514,7 @@
 			const tanda = JSON.stringify([o.id, o.avatar, o.daring, o.dnd]);
 			if (kepalaAvatar.getAttribute('data-tanda') !== tanda) {
 				kepalaAvatar.setAttribute('data-tanda', tanda);
-				ganti(kepalaAvatar, [avatar(o.avatar, { titik: titik(o) })]);
+				ganti(kepalaAvatar, [avatar(o.avatar, { titik: titik(o), gerak: true })]);
 			}
 			gambarObrolan(k);
 		} else {

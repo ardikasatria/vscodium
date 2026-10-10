@@ -1,37 +1,26 @@
-# DSWorkbench — ekstensi siap tanam
+# DSWorkbench
 
-Hasil bangun `apps/ide/extension` (ekstensi `sditera.dsworkbench` 0.1.2).
-Local Runner bawaan: 0.4.10 @ 68b7589.
+**Versi 0.1.3** · Local Runner 0.4.10
 
-## Menanam ke aplikasi bermerek (fork skrip VSCodium)
+Kelas, naskah modul, notebook, tugas, checkpoint, SQL, terminal praktikum, asisten belajar
+Bravais, dan teman sekelas — untuk Sains Data ITERA. Semua dijalankan di komputer Anda
+lewat Local Runner; server Workbench hanya memegang akun, materi, dan nilai.
 
-1. Salin SELURUH folder ini menjadi `extensions/dsworkbench/` di pohon sumber sebelum
-   pengemasan, atau langsung ke aplikasi hasil bangun:
-   - macOS: `DSWorkbench.app/Contents/Resources/app/extensions/dsworkbench/`
-   - Windows/Linux: `resources/app/extensions/dsworkbench/`
-   Nama folder bebas; yang dibaca adalah `package.json` di dalamnya.
-2. Jangan menjalankan `npm install` di sini: ekstensi sudah dibundel menjadi satu berkas
-   (`dist/extension.js`) dan tidak punya dependensi runtime.
-3. Tema bawaan dan izin pembaruan diatur saat menanam, bukan di folder ini: pakai
-   `embed_extension.sh` + `tema_bawaan.sh` dari `apps/ide/product/` (menambahkan
-   `configurationDefaults` ke salinan tertanam) dan tambalan `product.json` di sana
-   (`builtInExtensionsEnabledWithAutoUpdates`). Kunci `configurationDefaults` di
-   `product.json` tidak dibaca aplikasi desktop. Sebagai jaring pengaman, ekstensi
-   menerapkan "DSWorkbench Gelap" sekali saat pertama aktif bila nama aplikasi diawali
-   `DSWorkbench` dan pengguna belum memilih tema.
-4. Di macOS, tanda tangani aplikasi SETELAH folder ini disalin. `agent-payload/` berisi
-   sumber Python saja (tanpa biner); ekstensi menjalankannya dengan
-   `PYTHONDONTWRITEBYTECODE=1` sehingga tidak ada berkas yang ditulis ke dalam bundel.
+## Mulai
 
-## Isi
+1. **Masuk**: `Ctrl+Shift+P` (Mac: `Cmd+Shift+P`) → **DSWorkbench: Mulai**, lalu ikuti tiga langkahnya.
+2. **Siapkan lingkungan praktikum** untuk mata kuliah Anda.
+3. **Buka Kelas** dari ikon DSWorkbench di bilah kiri.
 
-| Jalur | Isi |
-|---|---|
-| `package.json` | manifest ekstensi (perintah, pengaturan, tema, view) |
-| `dist/extension.js` | kode ekstensi, satu berkas |
-| `media/` | ikon bilah aktivitas; skrip panel (`panel/`); KaTeX (`katex/`, MIT, huruf OFL); pemutar Lottie (`lottie/`, MIT); karakter Bravais (`bravais/`); suara panel (`suara/`, turunan aset stok, lisensi belum dipastikan: lihat `suara/CATATAN.txt`) |
-| `themes/` | `DSWorkbench Gelap` dan `DSWorkbench Terang` |
-| `agent-payload/` | sumber Local Runner + `MANIFEST.json` (versi, commit, sha256 tiap berkas) |
+## Pembaruan
 
-Memasang sebagai ekstensi biasa: pakai `dsworkbench-0.1.2.vsix` di folder induk
-(`code --install-extension …` atau *Extensions: Install from VSIX*).
+Ekstensi ini bawaan aplikasi dan memperbarui dirinya sendiri; tidak ada tombol *Update*
+di halaman ini. Aplikasi memeriksa tiap kali dibuka. Untuk memeriksa saat itu juga:
+`Ctrl+Shift+P` / `Cmd+Shift+P` → **DSWorkbench: Periksa pembaruan**, lalu **Muat ulang sekarang**.
+Versi yang sedang berjalan juga tampil di panel DSWorkbench → **Status** → **Versi**.
+
+## Bantuan
+
+Panduan pasang dan pemecahan masalah ada di Workbench web → **Panduan DSWorkbench**.
+Saat melapor masalah, sebutkan versi di atas dan salin beberapa baris terakhir dari panel
+**Output** → **DSWorkbench Agent**.

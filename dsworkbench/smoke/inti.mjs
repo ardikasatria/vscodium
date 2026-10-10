@@ -498,7 +498,7 @@ try {
 	periksa('pemasang lingkungan: perintah dan view Status terdaftar, profil terbaca dari payload, folder runtime tidak dibuat saat aktif', () => {
 		for (const p of ['dsworkbench.env.setup', 'dsworkbench.env.install', 'dsworkbench.env.update', 'dsworkbench.env.check', 'dsworkbench.env.openFolder', 'dsworkbench.getStarted']) assert.ok(h.perintah.includes(p), p);
 		assert.equal(nj(h.lingkungan.folder), nj(folderRuntime));
-		assert.deepEqual(h.lingkungan.status, ['akun', 'agent', 'lingkungan', 'disk', 'folder']);
+		assert.deepEqual(h.lingkungan.status, ['akun', 'agent', 'lingkungan', 'disk', 'folder', 'versi']);
 		if (fs.existsSync(path.join(akarMuat, 'agent-payload', 'requirements', 'profiles.json'))) {
 			assert.deepEqual(h.lingkungan.profil, [
 				{ id: 'python-data-science', keadaan: 'belum_dipasang' },

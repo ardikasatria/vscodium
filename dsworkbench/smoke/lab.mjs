@@ -482,7 +482,7 @@ try {
 		assert.equal(awal.teksBilah[0], '$(shield) Mode lab: Lab Uji');
 		assert.match(awal.info.ringkas, /Mode lab aktif \(Lab Uji\) · keluar otomatis setelah 5 menit/);
 		assert.deepEqual(m.beranda, { pita: true, tombolKeluar: true, lab: { nama: 'Lab Uji', menganggurMenit: 5 } });
-		assert.deepEqual(m.statusView, ['lab', 'akun', 'agent', 'lingkungan', 'disk', 'folder']);
+		assert.deepEqual(m.statusView, ['lab', 'akun', 'agent', 'lingkungan', 'disk', 'folder', 'versi']);
 		assert.equal(m.setelahMasuk.keadaan.teksBilah[1], '$(sign-out) Keluar');
 	});
 	periksa('mode lab: suara panel bawaan MATI; menyala hanya bila pengguna menulis dsworkbench.sound.enabled', () => {
