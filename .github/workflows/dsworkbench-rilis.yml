@@ -77,6 +77,10 @@ jobs:
           }
           ambil a/linux 'dsworkbench_[0-9.]+_amd64\.deb'
           if [[ "$MODE" == "baru" ]]; then
+            # Arsip untuk distro selain Debian/Ubuntu (pengganti AppImage, yang belum terbukti berjalan).
+            ambil a/linux     'DSWorkbench-linux-x64-[0-9.]+\.tar\.gz'
+            tar -tzvf rilis/DSWorkbench-linux-x64-*.tar.gz | grep -E 'extensions/dsworkbench/package\.json$' | tee /dev/stderr | grep -q '^-rw-r--r--' \
+              || { echo "package.json ekstensi di .tar.gz tidak terbaca semua pengguna" >&2; exit 1; }
             ambil a/win       'DSWorkbenchUserSetup-x64-[0-9.]+\.exe'
             ambil a/mac-arm64 'DSWorkbench-darwin-arm64-[0-9.]+\.zip'
             ambil a/mac-x64   'DSWorkbench-darwin-x64-[0-9.]+\.zip'

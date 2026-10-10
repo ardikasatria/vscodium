@@ -65,7 +65,12 @@ jobs:
             pola: '^dsworkbench_[0-9.]+_amd64\.deb$'
             rahasia: memori
             lingkungan: ya
-          # linux-appimage dikeluarkan: rilis uji 2 tidak menyertakan AppImage (belum terbukti berjalan).
+          # linux-appimage dikeluarkan (belum terbukti berjalan); penggantinya arsip .tar.gz.
+          - id: linux-tar
+            os: ubuntu-latest
+            pola: '^DSWorkbench-linux-x64-[0-9.]+\.tar\.gz$'
+            rahasia: memori
+            lingkungan: tidak
           - id: macos-x64
             # Intel. `macos-13` sudah dipensiunkan; label Intel gratis yang tersisa: macos-15-intel, macos-26-intel.
             os: macos-15-intel
@@ -189,6 +194,25 @@ jobs:
           APP="$( dirname "$( dirname "$( dirname "${PRODUK}" )" )" )"
           echo "APP=${APP}" >> "${GITHUB_ENV}"
           echo "terpasang di ${APP}"; dpkg -s dsworkbench | sed -n '1,12p'
+
+      - name: Siapkan (Linux .tar.gz, diekstrak)
+        if: matrix.id == 'linux-tar'
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends xvfb
+          # Arsip ini untuk distro selain Debian/Ubuntu. Sandbox Chromium dari arsip memakai user
+          # namespace, yang dibatasi AppArmor di Ubuntu 24.04+ (di sana pakai .deb); runner ini
+          # Ubuntu, jadi pembatasannya dilonggarkan agar setara dengan distro sasaran.
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          # Pustaka yang pada .deb ditarik sebagai dependensi paket.
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libnss3 libgbm1 libxkbfile1 libsecret-1-0 libgtk-3-0t64 libasound2t64 || true
+          mkdir -p "${RUNNER_TEMP}/DSWorkbench"
+          tar -xzf "${ASET}" -C "${RUNNER_TEMP}/DSWorkbench"
+          APP="${RUNNER_TEMP}/DSWorkbench"
+          [[ -f "${APP}/resources/app/product.json" && -x "${APP}/bin/dsworkbench" ]] || { echo "isi arsip tidak seperti dugaan" >&2; ls -la "${APP}" >&2; exit 1; }
+          echo "APP=${APP}" >> "${GITHUB_ENV}"
+          echo "diekstrak ke ${APP}"
 
       - name: Siapkan (Linux AppImage, diekstrak — runner tidak punya FUSE)
         if: matrix.id == 'linux-appimage'
