@@ -6,7 +6,7 @@
 	'use strict';
 	const dsw = window.dsw;
 	const PILIH = new Set(['pilih-modul', 'pilih-target', 'pilih-skema']);
-	const BAGIAN = new Set(['b-kepala', 'b-layanan', 'b-dataset', 'b-kerja', 'b-jelajah', 'b-er', 'b-web']);
+	const BAGIAN = new Set(['b-kepala', 'b-layanan', 'b-dataset', 'b-kerja', 'b-jelajah', 'b-er', 'b-cek', 'b-web']);
 	const galat = [];
 
 	// -- diagram ER: geser, perbesar, sorot ------------------------------------------------

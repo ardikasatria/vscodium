@@ -3,7 +3,7 @@
   "displayName": "DSWorkbench",
   "icon": "media/ikon.png",
   "description": "Kelas, naskah modul, notebook, tugas, checkpoint, SQL, terminal praktikum, dan asisten belajar Bravais untuk Sains Data ITERA, dijalankan di komputer Anda lewat Local Runner.",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "publisher": "sditera",
   "private": true,
   "license": "UNLICENSED",
@@ -117,6 +117,22 @@
           "default": true,
           "scope": "window",
           "markdownDescription": "Tampilkan notifikasi saat ada pesan baru dari teman sekelas ketika panel Sosial tidak terlihat. Notifikasi hanya menyebut pengirim, tidak pernah isi pesan."
+        },
+        "dsworkbench.social.animations": {
+          "type": "string",
+          "enum": [
+            "selalu",
+            "ikutiSistem",
+            "mati"
+          ],
+          "enumDescriptions": [
+            "Avatar di panel Sosial selalu bergerak, juga saat sistem operasi meminta \"kurangi gerak\" (bawaan).",
+            "Avatar bergerak kecuali sistem operasi meminta \"kurangi gerak\" (Windows: Pengaturan > Aksesibilitas > Efek visual > Efek animasi mati; macOS: Kurangi gerakan).",
+            "Avatar tidak pernah bergerak."
+          ],
+          "default": "selalu",
+          "scope": "window",
+          "markdownDescription": "Gerak avatar di panel Sosial (emoji yang bergoyang dan ilustrasi beranimasi). Bawaannya `selalu`: avatar tetap bergerak walau sistem operasi meminta \"kurangi gerak\", karena di banyak komputer lab dan sesi Remote Desktop permintaan itu menyala dengan sendirinya. **Bila gerak mengganggu Anda** (pusing, sulit berkonsentrasi, atau komputer terasa berat), pilih `mati` untuk menghentikan semua gerak avatar, atau `ikutiSistem` agar mengikuti pengaturan aksesibilitas sistem operasi. Perubahan berlaku seketika. Gerak lain di panel tetap mengikuti sistem operasi, dan panel yang tersembunyi tidak pernah beranimasi."
         }
       }
     },
@@ -132,6 +148,24 @@
         "title": "Keluar",
         "category": "DSWorkbench",
         "icon": "$(sign-out)"
+      },
+      {
+        "command": "dsworkbench.github.link",
+        "title": "Tautkan GitHub",
+        "category": "DSWorkbench",
+        "icon": "$(github)"
+      },
+      {
+        "command": "dsworkbench.github.unlink",
+        "title": "Putuskan tautan GitHub",
+        "category": "DSWorkbench",
+        "icon": "$(debug-disconnect)"
+      },
+      {
+        "command": "dsworkbench.auth.explainStorage",
+        "title": "Jelaskan penyimpanan tanda masuk",
+        "category": "DSWorkbench",
+        "icon": "$(key)"
       },
       {
         "command": "dsworkbench.showMenu",
@@ -550,6 +584,14 @@
         {
           "command": "dsworkbench.gudang.open",
           "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.github.link",
+          "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.github.unlink",
+          "when": "dsworkbench.masuk"
         }
       ],
       "view/title": [
@@ -657,7 +699,7 @@
         },
         {
           "command": "dsworkbench.runCheckpoint",
-          "when": "view == dsworkbench.tugas && viewItem == tugas",
+          "when": "view == dsworkbench.tugas && viewItem =~ /^tugas(Sql)?$/",
           "group": "inline@1"
         },
         {
@@ -667,7 +709,7 @@
         },
         {
           "command": "dsworkbench.submitTask",
-          "when": "view == dsworkbench.tugas && viewItem == tugas",
+          "when": "view == dsworkbench.tugas && viewItem =~ /^tugas(Sql)?$/",
           "group": "inline@3"
         },
         {
@@ -677,7 +719,7 @@
         },
         {
           "command": "dsworkbench.runCheckpoint",
-          "when": "view == dsworkbench.tugas && viewItem == tugas",
+          "when": "view == dsworkbench.tugas && viewItem =~ /^tugas(Sql)?$/",
           "group": "1_tugas@1"
         },
         {
@@ -687,7 +729,7 @@
         },
         {
           "command": "dsworkbench.submitTask",
-          "when": "view == dsworkbench.tugas && viewItem == tugas",
+          "when": "view == dsworkbench.tugas && viewItem =~ /^tugas(Sql)?$/",
           "group": "1_tugas@3"
         },
         {
@@ -754,6 +796,31 @@
           "command": "dsworkbench.gudang.open",
           "when": "view == dsworkbench.kelas && viewItem =~ /Gudang$/",
           "group": "0_baca@1"
+        },
+        {
+          "command": "dsworkbench.github.link",
+          "when": "view == dsworkbench.status && viewItem =~ /^github(Belum|Lain)$/",
+          "group": "inline@1"
+        },
+        {
+          "command": "dsworkbench.github.unlink",
+          "when": "view == dsworkbench.status && viewItem == githubTertaut",
+          "group": "inline@1"
+        },
+        {
+          "command": "dsworkbench.github.link",
+          "when": "view == dsworkbench.status && viewItem =~ /^github/",
+          "group": "1_github@1"
+        },
+        {
+          "command": "dsworkbench.github.unlink",
+          "when": "view == dsworkbench.status && viewItem == githubTertaut",
+          "group": "1_github@2"
+        },
+        {
+          "command": "dsworkbench.auth.explainStorage",
+          "when": "view == dsworkbench.status && viewItem == akunTakTersimpan",
+          "group": "inline@1"
         }
       ],
       "notebook/toolbar": [

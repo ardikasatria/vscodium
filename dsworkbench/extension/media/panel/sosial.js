@@ -7,6 +7,25 @@
 	const dsw = window.dsw;
 	const el = (id) => document.getElementById(id);
 	const MAKS_ANIMASI = 6;
+	// Gerak avatar (pengaturan `dsworkbench.social.animations`, lewat atribut body dan tiap pesan
+	// keadaan): `selalu` = bergerak juga saat sistem meminta "kurangi gerak" (bawaan),
+	// `ikutiSistem` = mengikuti sistem, `mati` = tidak pernah. Harus sama dengan src/sosial/animasi.ts.
+	const MODE_ANIMASI = ['selalu', 'ikutiSistem', 'mati'];
+	const kurangiGerak = window.matchMedia('(prefers-reduced-motion: reduce)');
+	function modeAnimasi() {
+		const m = document.body.getAttribute('data-animasi');
+		return MODE_ANIMASI.includes(m) ? m : 'selalu';
+	}
+	/** Avatar diam (CSS dan Lottie)? */
+	function avatarDiam() {
+		const m = modeAnimasi();
+		return m === 'mati' || (m === 'ikutiSistem' && kurangiGerak.matches);
+	}
+	function tetapkanModeAnimasi(mode) {
+		if (!MODE_ANIMASI.includes(mode) || mode === modeAnimasi()) return false;
+		document.body.setAttribute('data-animasi', mode);
+		return true;
+	}
 	let keadaan = null;
 	let cari = '';
 	let tandaDaftar = '';
@@ -104,8 +123,8 @@
 	}
 
 	function aturAnimasi() {
-		// Mengikuti "kurangi gerak"; berhenti saat panel tersembunyi.
-		if (!window.lottie || dsw.tenang() || document.hidden) {
+		// Mengikuti pengaturan gerak avatar; selalu berhenti saat panel tersembunyi.
+		if (!window.lottie || avatarDiam() || document.hidden) {
 			hentikanSemua();
 			return;
 		}
@@ -541,13 +560,17 @@
 		document.body.classList.toggle('tersembunyi', document.hidden);
 		aturAnimasi();
 	});
-	window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', aturAnimasi);
+	kurangiGerak.addEventListener('change', aturAnimasi);
+	document.body.classList.toggle('tersembunyi', document.hidden);
 
 	window.addEventListener('message', (e) => {
 		const m = e.data;
 		if (!m || typeof m !== 'object') return;
-		if (m.jenis === 'keadaan') gambar(m);
-		else if (m.jenis === 'animasi' && typeof m.avatar === 'string' && m.data && typeof m.data === 'object' && Array.isArray(m.kotak)) {
+		if (m.jenis === 'keadaan') {
+			// Pengaturan berubah: berlaku seketika, tanpa memuat ulang panel.
+			if (tetapkanModeAnimasi(m.animasi)) aturAnimasi();
+			gambar(m);
+		} else if (m.jenis === 'animasi' && typeof m.avatar === 'string' && m.data && typeof m.data === 'object' && Array.isArray(m.kotak)) {
 			// Paling banyak beberapa animasi disimpan di memori panel.
 			if (dataAnimasi.size >= 8) dataAnimasi.delete(dataAnimasi.keys().next().value);
 			dataAnimasi.set(m.avatar, { teks: JSON.stringify(m.data), kotak: m.kotak.map(Number) });

@@ -68,11 +68,24 @@ async function run() {
       await c.update("sound.enabled", void 0, vscode.ConfigurationTarget.Global);
       hasil["suara"] = { bawaan, eksplisit, akhir: api.uji.suara.pengaturan() };
     }
+    const JEJAK_LAMA = ["dsw.sql.var.pergudangan-data.modul-02/muat.sql", "dsworkbench.sql.target.pergudangan-data", "dsworkbench.gudang.modul.pergudangan-data"];
+    if (lab.tanam && tahap === "masuk") {
+      await lab.tanam(JEJAK_LAMA);
+      hasil["jejakLama"] = { ditanam: JEJAK_LAMA, sebelum: (await lab.tersimpan()).kunciRuang };
+    }
     void vscode.commands.executeCommand("dsworkbench.login");
     await sampai(() => lab.keadaan().masuk, 45e3, "masuk tidak selesai");
     await sampai(() => api.uji.statusAgent().keadaan === "siap", 3e4, "Local Runner tidak siap setelah masuk");
     hasil["setelahMasuk"] = { keadaan: lab.keadaan(), tersimpan: await lab.tersimpan(), agent: api.uji.statusAgent() };
     if (tahap === "masuk") {
+      if (lab.tanam) {
+        await sampai(async () => !(await lab.tersimpan()).kunciRuang?.some((k) => JEJAK_LAMA.includes(k)), 1e4, "").catch(() => void 0);
+        hasil["jejakLama"]["sesudahMasuk"] = (await lab.tersimpan()).kunciRuang;
+        const JEJAK_KINI = ["dsw.sql.target.pergudangan-data", "dsw.sql.var.pergudangan-data.modul-02/muat.sql", "dsworkbench.sql.target.pergudangan-data", "dsworkbench.sql.var.pergudangan-data.modul-02/muat.sql", "dsworkbench.gudang.modul.pergudangan-data", "dsworkbench.gudang.target.pergudangan-data", "kunciTanpaAwalan"];
+        await lab.tanam(JEJAK_KINI);
+        const t = await lab.tersimpan();
+        hasil["jejakKini"] = { ditanam: JEJAK_KINI, global: t.kunci, ruang: t.kunciRuang };
+      }
       const beranda = await api.uji.beranda();
       hasil["beranda"] = { pita: beranda.html.includes("Mode lab aktif"), tombolKeluar: beranda.html.includes('data-tindakan="keluar"'), lab: beranda.model?.lab };
       hasil["statusView"] = api.uji.lingkungan().status;

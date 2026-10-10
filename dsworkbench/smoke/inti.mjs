@@ -134,7 +134,24 @@ const katalogPgd = path.join(tmp, 'katalog.json');
 fs.writeFileSync(katalogPgd, JSON.stringify(KATALOG_PGD));
 const SERVICES_PGD = { postgres: { version: '17', clusters: [{ alias: 'source', port: 5433, databases: ['nusamart_oltp'], studentAccess: 'read' }, { alias: 'dw', port: 5434, databases: ['nusamart_dw'], studentAccess: 'owner' }] } };
 // Keadaan "laptop" menurut relay palsu: basis data mati, dataset belum ada, data belum dimuat.
-const pgd = { menyala: false, dataset: false, dimuat: false, job: new Map() };
+const pgd = { menyala: false, dataset: false, dimuat: false, job: new Map(), cek: new Map(), riwayat: [] };
+// Pemeriksa SQL modul (`sql.check`, job relay): keluaran mentah psql dan nama artefak ikut di jawaban
+// "agent" — ekstensi tidak boleh menampilkannya. Pemeriksaan pertama GAGAL (1 butir), berikutnya LULUS.
+const KELUARAN_MENTAH_PSQL = 'KELUARAN-MENTAH-PSQL-TIDAK-BOLEH-TAMPIL';
+const ARTEFAK_CEK = 'checks/check_m02_KUNCI.sql';
+const hasilCek = (ke) => {
+	const gagal = ke === 1;
+	const findings = [
+		{ status: 'LULUS', title: 'B1 dim_pelanggan ada', detail: null },
+		{ status: gagal ? 'GAGAL' : 'LULUS', title: 'B2 grain fakta_penjualan <b>unik</b>', detail: gagal ? 'ada 3 baris ganda' : null },
+		{ status: 'LEWAT', title: 'B3 opsional', detail: null },
+	];
+	return { status: gagal ? 'GAGAL' : 'LULUS', summary: gagal ? '1 dari 2 butir lulus' : '2 butir lulus', passed: !gagal, durationSeconds: 0.6, findings };
+};
+// Tautan GitHub (device flow dijalankan "Local Runner" lewat relay; di sini relay palsu yang menjawab).
+// Skenario per `github.auth_start`: ke-1 tertaut, ke-2 ditolak di GitHub, ke-3 menunggu selamanya (dibatalkan).
+const TOKEN_GITHUB = 'ghu_TOKEN_GITHUB_UJI_TIDAK_BOLEH_SAMPAI_KE_EKSTENSI';
+const gh = { akun: null, mulai: 0, tagih: 0, dicabut: 0 };
 
 // Fase 3: modul kedua untuk "Siapkan berkas modul", checkpoint, dan pengumpulan.
 const MODUL2 = 'm02-lanjut';
@@ -313,7 +330,7 @@ const server = http.createServer((req, res) => {
 					outputNaming: { notebook: 'M{module}_{nim}.ipynb' },
 					modules: [
 						{ id: 'm01-pengantar', order: 1, runtimeProfile: 'python-data-science', starterFiles: ['M01_starter.ipynb'] },
-						{ id: MODUL2, order: 2, runtimeProfile: 'python-data-science', starterFiles: ['notebooks/M02_starter.ipynb'] },
+						{ id: MODUL2, order: 2, runtimeProfile: 'python-data-science', starterFiles: ['notebooks/M02_starter.ipynb'], capabilities: [], checkpointArtifact: 'checks/check_m02.py' },
 					],
 				}, {
 					id: COURSE_PGD,
@@ -321,14 +338,38 @@ const server = http.createServer((req, res) => {
 					workspaceLayout: 'per-course',
 					modules: [
 						{ id: 'module-00', name: 'Pengantar', order: 0, capabilities: [] },
-						{ id: MODUL_PGD, name: 'Skema Bintang', order: 2, capabilities: ['postgres'] },
-						{ id: 'module-03', name: 'ETL', order: 3, capabilities: ['postgres'] },
+						{ id: MODUL_PGD, name: 'Skema Bintang', order: 2, capabilities: ['postgres'], checkpointArtifact: ARTEFAK_CEK },
+						{ id: 'module-03', name: 'ETL', order: 3, capabilities: ['postgres'], checkpointArtifact: 'checks/check_m03.sql' },
+						// Tidak dirujuk lesson mana pun dan tanpa pemeriksa: server menganggapnya terbuka.
+						{ id: 'module-04', name: 'SCD', order: 4, capabilities: ['postgres'], checkpointArtifact: null },
 					],
 				}],
 			});
 		}
 		if (req.method === 'GET' && req.url === '/api/auth/me') return jawab(200, { user: { id: 'u-uji', username: USERNAME } });
-		if (req.method === 'GET' && req.url === '/api/me/kelas') return jawab(200, { kelas: [] });
+		// Kelas Pergudangan Data (mahasiswa, bukan staf): kurikulumnya menentukan modul mana yang sudah dirilis.
+		if (req.method === 'GET' && req.url === '/api/me/kelas') return jawab(200, { kelas: [{ id: 'k-pgd', courseId: COURSE_PGD, title: 'Pergudangan Data RA', active: true, courseName: 'Pergudangan Data', staffRole: null }] });
+		if (req.method === 'GET' && req.url === '/api/me/kelas/k-pgd/kurikulum') {
+			const l = (id, isi) => ({ id, moduleId: 'kmp', courseId: COURSE_PGD, title: id, sortOrder: 1, ...isi });
+			return jawab(200, {
+				courseId: COURSE_PGD, kelasId: 'k-pgd', previewMode: false, staffRole: null,
+				modules: [{
+					id: 'kmp', courseId: COURSE_PGD, title: 'Pertemuan', sortOrder: 1, release: { locked: false, releaseAt: null },
+					lessons: [
+						l('l-lab-02', { type: 'lab', packageModuleId: MODUL_PGD, locked: false, release: { locked: false, releaseAt: null } }),
+						// Lesson terkunci: server hanya mengirim judul (tanpa packageModuleId), persis `LOCKED_SAFE_FIELDS`.
+						l('l-lab-03', { type: 'lab', locked: true, contentHidden: true, release: { locked: true, releaseAt: '2026-10-12T01:00:00+00:00' } }),
+						// Kuis merujuk modul 03 hanya untuk pengelompokan: tidak membuka modulnya.
+						l('l-kuis-03', { type: 'quiz', packageModuleId: 'module-03', locked: false, release: { locked: false, releaseAt: null } }),
+					],
+				}],
+			});
+		}
+		// Tautan GitHub: status (baca saja). DELETE tidak ada di cakupan token aplikasi → 403 bila dipanggil.
+		if (req.url === '/api/me/integrations/github') {
+			if (req.method !== 'GET') return jawab(403, { error: 'di_luar_cakupan_aplikasi', message: 'Di luar cakupan token aplikasi.' });
+			return jawab(200, { enabled: true, configured: true, appType: 'github-app', appName: 'Workbench Uji', appSlug: null, account: gh.akun, repoCreate: false, visibilityPolicy: 'private', bindings: [] });
+		}
 		// --- Fase 5: naskah, gambar, kurikulum, pengumuman ---
 		if (req.method === 'GET' && req.url === `/api/courses/${COURSE}/modules/${MODUL2}/material`) {
 			res.statusCode = 200;
@@ -381,7 +422,13 @@ const server = http.createServer((req, res) => {
 			return res.end(f.isi);
 		}
 		if (kunci === 'GET /api/me/tasks') {
-			return jawab(200, { tasks: [{ assignmentId: 'a-m02', courseId: COURSE, moduleId: MODUL2, title: 'Tugas Modul 2', dueAt: '2030-01-01T00:00:00+00:00', attemptStatus: 'none', attemptId: null, gradeReleased: false, grade: null, href: `/courses/${COURSE}/modules/${MODUL2}/tasks?kelasId=k1`, release: { locked: false, releaseAt: null, lockSource: null } }] });
+			return jawab(200, {
+				tasks: [
+					{ assignmentId: 'a-m02', courseId: COURSE, moduleId: MODUL2, title: 'Tugas Modul 2', dueAt: '2030-01-01T00:00:00+00:00', attemptStatus: 'none', attemptId: null, gradeReleased: false, grade: null, href: `/courses/${COURSE}/modules/${MODUL2}/tasks?kelasId=k1`, release: { locked: false, releaseAt: null, lockSource: null } },
+					// Tugas modul ber-basis data (pemeriksa SQL): di panel Tugas tanpa tombol "Mode tugas".
+					{ assignmentId: 'a-pgd-02', courseId: COURSE_PGD, moduleId: MODUL_PGD, title: 'Tugas Skema Bintang', dueAt: '2030-02-01T00:00:00+00:00', attemptStatus: 'none', attemptId: null, gradeReleased: false, grade: null, href: `/courses/${COURSE_PGD}/modules/${MODUL_PGD}/tasks?kelasId=k-pgd`, release: { locked: false, releaseAt: null, lockSource: null } },
+				],
+			});
 		}
 		if (kunci === `GET ${modul2}/assignments`) {
 			return jawab(200, { assignments: [{ id: 'a-m02', courseId: COURSE, moduleId: MODUL2, title: 'Tugas Modul 2', requiredArtifacts: [{ name: 'M02_NIM.ipynb', label: 'Notebook', contentTypes: ['application/x-ipynb+json'] }, { name: 'catatan.md', label: 'Catatan', contentTypes: ['text/markdown'] }], analysisQuestions: [] }], submission: { manualUpload: false } });
@@ -419,7 +466,27 @@ const server = http.createServer((req, res) => {
 			});
 		}
 		// Modul lain mata kuliah itu belum dibuka pengampu: pesan server tampil apa adanya di panel.
-		if (kunci === `GET /api/courses/${COURSE_PGD}/modules/module-03`) return jawab(403, { error: 'tidak_berhak', message: 'Materi modul ini belum dibuka.' });
+		if (kunci === `GET /api/courses/${COURSE_PGD}/modules/module-03`) return jawab(403, { error: 'tidak_berhak', message: 'Materi modul ini belum dirilis dosen. Dirilis 12-10-2026 08.00 WIB.' });
+		if (kunci === `GET /api/courses/${COURSE_PGD}/modules/module-04`) return jawab(200, { id: 'module-04', name: 'SCD', order: 4, course: { id: COURSE_PGD, version: '2026.3' }, workFolder: 'modul-04', localDataset: false, files: [] });
+		// Riwayat checkpoint modul PGD: diisi "server" saat job sql.check selesai (seperti `_catat_sql_check`).
+		if (kunci === `GET /api/me/courses/${COURSE_PGD}/modules/${MODUL_PGD}/checkpoint-runs`) return jawab(200, { runs: [...pgd.riwayat].reverse() });
+		let mc;
+		if ((mc = /^GET \/api\/relay\/jobs\/(job-cek-\d+)\?since=(\d+)$/.exec(kunci)) && pgd.cek.has(mc[1])) {
+			const j = pgd.cek.get(mc[1]);
+			j.tagihan += 1;
+			if (j.batal) return jawab(200, { jobId: mc[1], state: 'cancelled', elapsedMs: 700, output: [], nextSince: 0, result: null, reason: 'cancelled_by_user', detail: 'Kueri dihentikan.' });
+			if (j.tagihan < 2 || j.macet) return jawab(200, { jobId: mc[1], state: 'running', elapsedMs: 800 * j.tagihan, output: [], nextSince: 0, result: null, reason: null, detail: null });
+			// Basis data mati: agent menolak dengan kode kontrak, tanpa butir.
+			if (!j.menyala) return jawab(200, { jobId: mc[1], state: 'failed', elapsedMs: 900, output: [], nextSince: 0, result: { code: 'service_stopped', alias: 'dw' }, reason: 'error', detail: null });
+			const result = hasilCek(j.ke);
+			if (!j.dicatat) {
+				j.dicatat = true;
+				const counts = {};
+				for (const f of result.findings) counts[f.status] = (counts[f.status] ?? 0) + 1;
+				pgd.riwayat.push({ id: `run-${pgd.riwayat.length + 1}`, courseId: COURSE_PGD, moduleId: MODUL_PGD, status: result.status, findingCounts: counts, durationMs: 600, createdAt: new Date().toISOString(), attemptId: null, mode: null });
+			}
+			return jawab(200, { jobId: mc[1], state: 'succeeded', elapsedMs: 1700, output: [{ type: 'stream', name: 'stdout', text: KELUARAN_MENTAH_PSQL }], nextSince: 40, result: { result, output: KELUARAN_MENTAH_PSQL, seconds: 0.6, artifact: ARTEFAK_CEK, exitCode: 0 }, reason: null, detail: null });
+		}
 		let mj;
 		if ((mj = /^GET \/api\/relay\/jobs\/(job-pgd-\d+)\?since=(\d+)$/.exec(kunci)) && pgd.job.has(mj[1])) {
 			const j = pgd.job.get(mj[1]);
@@ -458,6 +525,15 @@ const server = http.createServer((req, res) => {
 					pgd.job.set(jobId, { op, tagihan: 0 });
 					result = { status: 'ok', payload: { jobId, state: 'queued' }, detail: null };
 				}
+			} else if (op === 'sql.check' && badan.payload.job === true) {
+				// Kunci rilis modul ditegakkan server (403), pemeriksa hanya ada untuk modul 02 (404 selain itu).
+				if (badan.payload.moduleId === 'module-03') return jawab(403, { error: 'tidak_berhak', message: 'Materi modul ini belum dirilis dosen. Dirilis 12-10-2026 08.00 WIB.' });
+				if (badan.payload.moduleId !== MODUL_PGD) return jawab(404, { error: 'tidak_ditemukan', message: 'Modul ini tidak memiliki pemeriksa SQL.' });
+				jobId = `job-cek-${pgd.cek.size + 1}`;
+				const ke = [...pgd.cek.values()].filter((x) => x.menyala && !x.macet).length + 1;
+				// Pemeriksaan ke-4 yang sah sengaja "macet" agar dapat dihentikan (job.cancel).
+				pgd.cek.set(jobId, { tagihan: 0, menyala: pgd.menyala, ke, macet: pgd.menyala && ke === 4 });
+				result = { status: 'ok', payload: { jobId, state: 'queued' }, detail: null };
 			}
 			relayHasil.set(messageId, result);
 			return jawab(202, { messageId, operation: op, queueDepth: 0, ...(jobId ? { jobId, timeoutSeconds: 120 } : {}) });
@@ -470,6 +546,25 @@ const server = http.createServer((req, res) => {
 				result = { status: 'ok', payload: { initialized: true, clean: true, ahead: 0, behind: 0, branch: 'main' }, detail: null };
 			} else if (badan.operation === 'checkpoint.run') {
 				result = { status: 'ok', payload: { result: { status: 'LULUS', summary: '2 butir lulus', passed: true, durationSeconds: 0.4, findings: [{ status: 'LULUS', title: 'Berkas ada' }, { status: 'LULUS', title: 'Sel pertama berjalan' }] } }, detail: null };
+			} else if (badan.operation === 'job.cancel' && pgd.cek.has(badan.payload?.jobId)) {
+				pgd.cek.get(badan.payload.jobId).batal = true;
+				result = { status: 'ok', payload: { jobId: badan.payload.jobId, state: 'cancelling' }, detail: null };
+			} else if (badan.operation === 'github.auth_start') {
+				gh.mulai += 1;
+				gh.tagih = 0;
+				result = { status: 'ok', payload: { userCode: `UJI${gh.mulai}-KODE`, verificationUri: gh.mulai === 2 ? 'https://jahat.example/login/device' : 'https://github.com/login/device', expiresIn: 900, interval: 1, appName: 'Workbench Uji', appType: 'github-app' }, detail: null };
+			} else if (badan.operation === 'github.auth_poll') {
+				gh.tagih += 1;
+				if (gh.mulai === 1 && gh.tagih >= 2) {
+					// "Server" mencatat tautan dari hasil relay perangkat (github_http.record_relay_result).
+					gh.akun = { githubUserId: 4242, login: 'mhs-uji', avatarUrl: null, linkedAt: new Date().toISOString(), deviceId: badan.deviceId };
+					result = { status: 'ok', payload: { state: 'linked', account: { githubUserId: 4242, login: 'mhs-uji', avatarUrl: null }, accessToken: TOKEN_GITHUB }, detail: null };
+				} else if (gh.mulai === 2) result = { status: 'ok', payload: { state: 'denied' }, detail: null };
+				else result = { status: 'ok', payload: { state: 'pending', interval: 1 }, detail: null };
+			} else if (badan.operation === 'github.auth_revoke') {
+				gh.dicabut += 1;
+				gh.akun = null;
+				result = { status: 'ok', payload: { revokedLocal: true, revokedRemote: true }, detail: null };
 			}
 			relayHasil.set(messageId, result);
 			return jawab(202, { messageId, operation: badan.operation, queueDepth: 0 });
@@ -597,7 +692,8 @@ try {
 	periksa('pemasang lingkungan: perintah dan view Status terdaftar, profil terbaca dari payload, folder runtime tidak dibuat saat aktif', () => {
 		for (const p of ['dsworkbench.env.setup', 'dsworkbench.env.install', 'dsworkbench.env.update', 'dsworkbench.env.check', 'dsworkbench.env.openFolder', 'dsworkbench.getStarted']) assert.ok(h.perintah.includes(p), p);
 		assert.equal(nj(h.lingkungan.folder), nj(folderRuntime));
-		assert.deepEqual(h.lingkungan.status, ['akun', 'agent', 'lingkungan', 'disk', 'folder', 'versi']);
+		// Baris GitHub (0.1.7) hanya ada saat masuk dan fiturnya menyala; diperiksa tersendiri di bawah.
+		assert.deepEqual(h.lingkungan.status.filter((x) => x !== 'github'), ['akun', 'agent', 'lingkungan', 'disk', 'folder', 'versi']);
 		if (fs.existsSync(path.join(akarMuat, 'agent-payload', 'requirements', 'profiles.json'))) {
 			assert.deepEqual(h.lingkungan.profil, [
 				{ id: 'python-data-science', keadaan: 'belum_dipasang' },
@@ -855,7 +951,7 @@ try {
 		assert.match(b.html, /Selamat (pagi|siang|sore|malam), Mahasiswa Uji/);
 		assert.deepEqual(b.model.lanjut.map((x) => [x.jenis, x.judul]).slice(0, 2), [['naskah', 'Modul 2'], ['notebook', NAMA_STARTER2]]);
 		assert.ok(b.html.includes('Pemeliharaan server &lt;uji&gt;') && b.html.includes('Tugas Modul 2'));
-		assert.deepEqual(b.model.tenggat.map((t) => t.judul), ['Tugas Modul 2']);
+		assert.deepEqual(b.model.tenggat.map((t) => t.judul).slice(0, 1), ['Tugas Modul 2']);
 		assert.ok(b.html.includes('data-tindakan="buka-kelas"') && b.html.includes('data-tindakan="siapkan-lingkungan"') && b.html.includes('data-tindakan="buka-web"'));
 		assert.ok(!/nilai|peringkat/i.test(b.html));
 		assert.equal(b.ditolak, 'ditolak');
@@ -989,7 +1085,8 @@ try {
 		const kirimPgd = permintaan.filter((x) => x.jalur === '/api/relay/dispatch' && x.badan?.payload?.courseId === COURSE_PGD).map((x) => x.badan);
 		const opPgd = kirimPgd.map((x) => x.operation);
 		const langkah = (b) => Object.fromEntries(['layanan', 'dataset', 'kerja', 'jelajah', 'er'].map((id) => [id, /class="langkah langkah--([a-z]+)"/.exec(b[`b-${id}`])?.[1]]));
-		periksa('panel Pergudangan Data: hanya untuk mata kuliah yang modulnya butuh basis data (katalog), terbuka sebagai tab, skrip panel berjalan di bawah CSP, lima langkah berstatus nyata', () => {
+		const langkahCek = (b) => /class="langkah langkah--([a-z]+)"/.exec(b['b-cek'])?.[1];
+		periksa('panel Pergudangan Data: hanya untuk mata kuliah yang modulnya butuh basis data (katalog), terbuka sebagai tab, skrip panel berjalan di bawah CSP, enam langkah berstatus nyata', () => {
 			assert.ok(h.perintah.includes('dsworkbench.gudang.open'));
 			assert.deepEqual(g.berlayanan, [COURSE_PGD], 'ditentukan dari kemampuan modul di katalog');
 			assert.equal(g.bukanLayanan, false, 'mata kuliah tanpa basis data praktikum: panel tidak dibuka');
@@ -1001,7 +1098,8 @@ try {
 			assert.equal((g.html.match(/<script\b/g) ?? []).length, 2);
 			const a = g.awal;
 			assert.equal(a.model.namaMataKuliah, 'Pergudangan Data');
-			assert.deepEqual(a.model.modul.map((m) => m.id), [MODUL_PGD, 'module-03'], 'pemilih modul: hanya modul yang butuh basis data');
+			assert.deepEqual(a.model.modul.map((m) => m.id), [MODUL_PGD, 'module-03', 'module-04'], 'pemilih modul: hanya modul yang butuh basis data');
+			assert.equal(langkahCek(a.bagian), 'menunggu', 'langkah Periksa menunggu basis data menyala');
 			assert.equal(a.model.modulTerpilih, 0);
 			assert.deepEqual(langkah(a.bagian), { layanan: 'kini', dataset: 'kini', kerja: 'info', jelajah: 'menunggu', er: 'menunggu' });
 			assert.ok(a.bagian['b-layanan'].includes('<code>localhost:5433</code>') && a.bagian['b-layanan'].includes('data-tindakan="nyalakan"'));
@@ -1037,7 +1135,7 @@ try {
 			assert.deepEqual(kirimPgd.find((x) => x.operation === 'dataset.materialize'), { deviceId: 'dev-uji', operation: 'dataset.materialize', payload: { courseId: COURSE_PGD, moduleId: MODUL_PGD, job: true } });
 			assert.deepEqual(kirimPgd.find((x) => x.operation === 'service.postgres.load'), { deviceId: 'dev-uji', operation: 'service.postgres.load', payload: { courseId: COURSE_PGD, moduleId: MODUL_PGD, job: true } });
 			assert.ok(opPgd.indexOf('dataset.materialize') < opPgd.indexOf('service.postgres.load'));
-			const tagih = permintaan.filter((x) => x.jalur.startsWith('/api/relay/jobs/')).map((x) => x.jalur);
+			const tagih = permintaan.filter((x) => x.jalur.startsWith('/api/relay/jobs/job-pgd-')).map((x) => x.jalur);
 			assert.deepEqual(tagih, ['/api/relay/jobs/job-pgd-1?since=0', '/api/relay/jobs/job-pgd-1?since=20', '/api/relay/jobs/job-pgd-2?since=0', '/api/relay/jobs/job-pgd-2?since=20']);
 			assert.ok(g.setelahSiapkan.bagian['b-dataset'].includes('Siap di laptop, belum dimuat') && g.setelahSiapkan.bagian['b-dataset'].includes('9/9 berkas') && g.setelahSiapkan.bagian['b-dataset'].includes('Dataset modul siap di data/raw/'));
 			assert.ok(g.setelahMuat.bagian['b-dataset'].includes('Sudah dimuat') && g.setelahMuat.bagian['b-dataset'].includes('7 tabel, 12.345 baris') && g.setelahMuat.bagian['b-dataset'].includes('Muat ulang data sumber'));
@@ -1054,16 +1152,158 @@ try {
 			assert.equal(g.bukaBerkas.hasil, 'dibuka');
 			assert.equal(nj(nyata(g.bukaBerkas.aktif)), nj(path.join(nyata(ws), COURSE_PGD, 'modul-02', '01_ddl.sql')));
 			assert.equal(g.bukaBerkasBelumAda, 'tidak_ada');
-			assert.equal(g.modulTerkunci.hasil, 'modul');
-			assert.ok(g.modulTerkunci.kerja.includes('Materi modul ini belum dibuka.'), g.modulTerkunci.kerja);
-			assert.ok(g.modulTerkunci.dataset.includes('tidak memakai dataset'), 'dataset.verify 404 → modul tanpa dataset');
+			assert.equal(g.modulTerkunci.hasil, 'terkunci', 'modul yang belum dirilis tidak dapat dipilih walau pesannya dikarang');
+			assert.equal(g.modulTerkunci.terpilih, MODUL_PGD, 'modul terpilih tidak berubah');
+			assert.equal(g.modulLain.hasil, 'modul');
+			assert.ok(g.modulLain.dataset.includes('tidak memakai dataset'), 'modul tanpa dataset lokal');
 			assert.deepEqual(g.ditolak, Array(g.ditolak.length).fill('ditolak'));
 			assert.ok(g.ditolak.length >= 8);
 			const jumlah = (op) => opPgd.filter((o) => o === op).length;
 			assert.deepEqual([jumlah('service.start'), jumlah('service.stop'), jumlah('dataset.materialize'), jumlah('service.postgres.load')], [1, 0, 1, 1], 'pesan tak sah tidak memicu operasi apa pun');
 		});
+		periksa('pemilih modul panel: hanya modul yang sudah dirilis bagi mahasiswa ini — dari kurikulum Kelas (data pohon "Kelas saya"), sisanya ditanyakan ke server; yang terkunci tampil nonaktif dengan pesan server', () => {
+			const m = g.awal.model.modul;
+			assert.deepEqual(m.map((x) => [x.id, x.terkunci === true]), [[MODUL_PGD, false], ['module-03', true], ['module-04', false]]);
+			assert.equal(m[1].keterangan, 'Materi modul ini belum dirilis dosen. Dirilis 12-10-2026 08.00 WIB.');
+			assert.equal(g.awal.model.modulMemuat, false);
+			const kepala = g.awal.bagian['b-kepala'];
+			assert.ok(kepala.includes('<option value="0" selected>Modul 02 · Skema Bintang</option>'), kepala);
+			assert.ok(kepala.includes('<option value="1" disabled title="Materi modul ini belum dirilis dosen. Dirilis 12-10-2026 08.00 WIB.">Modul 03 · ETL — belum dirilis</option>'), kepala);
+			assert.ok(kepala.includes('<option value="2">Modul 04 · SCD</option>'));
+			// Sumbernya server: kurikulum Kelas mata kuliah itu, lalu info modul HANYA untuk yang tidak terbukti terbuka.
+			const jalur = permintaan.map((x) => `${x.metode} ${x.jalur}`);
+			assert.ok(jalur.includes('GET /api/me/kelas/k-pgd/kurikulum'));
+			const iKur = jalur.indexOf('GET /api/me/kelas/k-pgd/kurikulum');
+			const tanya = (id) => jalur.map((j, i) => [j, i]).filter(([j]) => j === `GET /api/courses/${COURSE_PGD}/modules/${id}`).map(([, i]) => i);
+			assert.ok(tanya('module-03').length >= 1 && tanya('module-03')[0] > iKur, 'modul 03 ditanyakan ke server setelah kurikulum');
+			assert.ok(tanya('module-04').length >= 1, 'modul 04 (tidak dirujuk lesson) ditanyakan, tidak ditebak terkunci');
+			assert.ok(!jalur.includes(`GET /api/courses/${COURSE_PGD}/modules/module-00`), 'modul tanpa basis data tidak ditawarkan dan tidak ditanyakan');
+			assert.equal(kirimPgd.filter((x) => x.payload?.moduleId === 'module-03').length, 0, 'tidak ada operasi relay untuk modul terkunci');
+		});
+		const kirimCek = kirimPgd.filter((x) => x.operation === 'sql.check');
+		periksa('checkpoint Pergudangan Data dari aplikasi: sql.check sebagai job relay {courseId, moduleId, job:true} — bukan checkpoint.run; gagal lalu lulus; hasil per butir; server yang mencatat riwayat', () => {
+			const c = g.cek;
+			assert.equal(c.sebelumNyala, 'ditolak', 'tombol Periksa mati selama basis data belum menyala');
+			assert.deepEqual([c.gagal.hasil, c.lulus.hasil], ['belum_lulus', 'lulus']);
+			assert.ok(kirimCek.length >= 2);
+			for (const k of kirimCek) assert.deepEqual(k, { deviceId: 'dev-uji', operation: 'sql.check', payload: { courseId: COURSE_PGD, moduleId: MODUL_PGD, job: true } }, 'muatan persis seperti web: tanpa skrip, path, atau saklar apa pun');
+			assert.equal(permintaan.filter((x) => x.jalur === '/api/relay/dispatch' && x.badan?.operation === 'checkpoint.run' && x.badan?.payload?.courseId === COURSE_PGD).length, 0, 'modul berpemeriksa SQL tidak pernah dikirimi checkpoint.run');
+			assert.ok(permintaan.some((x) => /^\/api\/relay\/jobs\/job-cek-1\?since=/.test(x.jalur)));
+			// Panel: status tertulis per butir, teks dari "agent" di-escape, tanpa keluaran mentah psql atau nama artefak pemeriksa.
+			const hg = c.gagal.bagian;
+			assert.equal((hg.match(/<li class="cek__butir/g) ?? []).length, 3);
+			assert.ok(hg.includes('1/3 butir lulus') && hg.includes('✗</span> GAGAL</span>') && hg.includes('ada 3 baris ganda') && hg.includes('Periksa lagi'), hg);
+			assert.ok(hg.includes('&lt;b&gt;unik&lt;/b&gt;') && !hg.includes('<b>unik'));
+			assert.equal(c.gagal.langkah, 'kini');
+			assert.ok(c.lulus.bagian.includes('2/3 butir lulus') && c.lulus.bagian.includes('lencana--dimuat'));
+			assert.equal(c.lulus.langkah, 'selesai');
+			for (const teks of [hg, c.lulus.bagian, JSON.stringify(c.modeTugas), JSON.stringify(c.mati), g.html]) {
+				assert.ok(!teks.includes(KELUARAN_MENTAH_PSQL), 'keluaran mentah psql tidak ditampilkan');
+				assert.ok(!teks.includes(ARTEFAK_CEK), 'nama artefak pemeriksa tidak ditampilkan');
+			}
+			// "Server" mencatat tiap pemeriksaan yang selesai; riwayatnya tampil di panel Tugas & tenggat.
+			assert.deepEqual(pgd.riwayat.map((r) => [r.status, r.mode]).slice(0, 2), [['GAGAL', null], ['LULUS', null]]);
+			assert.ok(c.pohon.riwayat.length >= 2 && c.pohon.riwayat.some((r) => r.startsWith('LULUS |')) && c.pohon.riwayat.some((r) => r.startsWith('GAGAL |')), JSON.stringify(c.pohon.riwayat));
+			assert.ok(!c.pohon.riwayat.some((r) => /Mode tugas/.test(r)), 'pemeriksa SQL tidak punya Mode tugas di riwayat');
+		});
+		periksa('checkpoint SQL lewat perintah "Jalankan checkpoint (Mode tugas)": tetap sql.check tanpa saklar tugas; tidak berjalan saat basis data mati (pesan jelas); dapat dihentikan (job.cancel)', () => {
+			const c = g.cek;
+			// Mode tugas diminta untuk modul SQL: dijalankan sebagai pemeriksa SQL biasa, seperti di web.
+			assert.equal(c.modeTugas.jenis, 'hasil');
+			assert.equal(c.modeTugas.hasil.pemeriksa, 'sql');
+			assert.deepEqual(c.modeTugas.hasil.findings.map((f) => f.status), ['LULUS', 'LULUS', 'LEWAT']);
+			assert.ok(!kirimCek.some((k) => 'tugas' in k.payload), 'saklar tugas tidak pernah dikirim ke pemeriksa SQL');
+			// Panel Tugas: modul SQL satu tombol tanpa "Mode tugas"; modul Python tetap dua tombol.
+			assert.equal(c.pohon.jenis, 'sql');
+			assert.deepEqual(c.pohon.konteks, ['tugasSql']);
+			assert.deepEqual(c.pohon.aksi.filter((a) => /checkpoint/i.test(a)), ['Jalankan checkpoint SQL']);
+			assert.equal(c.pohonPython.jenis, 'python');
+			assert.deepEqual(c.pohonPython.konteks, ['tugas']);
+			assert.deepEqual(c.pohonPython.aksi.filter((a) => /checkpoint/i.test(a)), ['Jalankan checkpoint', 'Jalankan checkpoint (Mode tugas)']);
+			// Dihentikan pengguna: job.cancel lewat relay dengan id job itu.
+			assert.equal(c.dihentikan.hasil, 'dihentikan');
+			assert.equal(c.dihentikan.pesanHenti, 'dihentikan');
+			assert.ok(c.dihentikan.bagian.includes('Pemeriksaan dihentikan.'), c.dihentikan.bagian);
+			const batal = permintaan.filter((x) => x.jalur === '/api/relay/dispatch' && x.badan?.operation === 'job.cancel').map((x) => x.badan);
+			assert.equal(batal.length, 1);
+			assert.match(batal[0].payload.jobId, /^job-cek-\d+$/);
+			// Basis data mati: agent menolak (service_stopped) → saran yang dapat ditindaklanjuti, tanpa butir.
+			assert.equal(c.mati.jenis, 'galat');
+			assert.equal(c.mati.kode, 'service_stopped');
+			assert.match(c.mati.pesan, /Basis data belum menyala/);
+			// Modul tanpa pemeriksa (katalog: checkpointArtifact kosong): langkah Periksa menjelaskannya, tanpa tombol.
+			assert.ok(g.modulLain.cek.includes('tidak punya pemeriksa checkpoint otomatis') && !g.modulLain.cek.includes('data-tindakan="periksa"'));
+			// Arahan "ke web" untuk checkpoint sudah tidak ada di panel.
+			assert.ok(!/Pemeriksa SQL modul \(checkpoint SQL\)|halaman Checkpoint di web/.test(g.html + g.setelahMuat.bagian['b-web']));
+		});
 	} else {
 		dilewati.push('panel Pergudangan Data: ekstensi yang diuji belum punya kait uji panel (versi lama)');
+	}
+
+	// --- Tautkan GitHub dari aplikasi -----------------------------------------------------
+	if (h.github) {
+		const G = h.github;
+		const kirimGh = permintaan.filter((x) => x.jalur === '/api/relay/dispatch' && String(x.badan?.operation).startsWith('github.')).map((x) => x.badan);
+		periksa('GitHub: perintah Tautkan/Putuskan terdaftar; baris GitHub di view Status (belum tertaut → tertaut sebagai @login → belum tertaut)', () => {
+			for (const p of ['dsworkbench.github.link', 'dsworkbench.github.unlink']) assert.ok(h.perintah.includes(p), p);
+			assert.deepEqual(G.awal.keadaan, { jenis: 'belum' });
+			assert.deepEqual([G.awal.baris?.keterangan, G.awal.baris?.konteks], ['belum tertaut', 'githubBelum']);
+			assert.deepEqual(G.tertaut.keadaan, { jenis: 'tertaut', login: 'mhs-uji', diSini: true });
+			assert.deepEqual([G.tertaut.baris?.keterangan, G.tertaut.baris?.konteks], ['tertaut sebagai @mhs-uji', 'githubTertaut']);
+			assert.deepEqual(G.putus.keadaan, { jenis: 'belum' });
+			assert.ok(h.lingkungan.status.includes('github'), 'baris GitHub ada di view Status');
+		});
+		periksa('GitHub tautkan: mulai → kode → menunggu → tertaut, seluruhnya lewat relay ke perangkat token; token GitHub tidak pernah sampai ke ekstensi', () => {
+			assert.deepEqual(G.taut.hasil, { jenis: 'tertaut', login: 'mhs-uji' });
+			assert.deepEqual(G.taut.kode, { userCode: 'UJI1-KODE', url: 'https://github.com/login/device', expiresIn: 900, interval: 1, appName: 'Workbench Uji' });
+			assert.ok(G.taut.kemajuan.some((t) => /kode UJI1-KODE — menunggu persetujuan di GitHub/.test(t)), JSON.stringify(G.taut.kemajuan));
+			assert.deepEqual(kirimGh.slice(0, 3), [
+				{ deviceId: 'dev-uji', operation: 'github.auth_start', payload: {} },
+				{ deviceId: 'dev-uji', operation: 'github.auth_poll', payload: {} },
+				{ deviceId: 'dev-uji', operation: 'github.auth_poll', payload: {} },
+			]);
+			// Token ada di jawaban "Local Runner" palsu; ekstensi tidak meneruskannya ke mana pun.
+			assert.ok(!JSON.stringify(h).includes(TOKEN_GITHUB), 'token GitHub tidak ada di hasil apa pun dari ekstensi');
+			assert.ok(!JSON.stringify(permintaan).includes(TOKEN_GITHUB), 'token GitHub tidak dikirim ekstensi ke server');
+			assert.deepEqual([...new Set(permintaan.filter((x) => x.jalur.startsWith('/api/me/integrations/github') && !x.jalur.includes('submit-gate')).map((x) => `${x.metode} ${x.jalur}`))], ['GET /api/me/integrations/github'], 'di luar relay hanya GET status');
+		});
+		periksa('GitHub putuskan (github.auth_revoke lewat relay), ditolak di GitHub, dan dibatalkan pengguna; alamat verifikasi asing tidak pernah dibuka', () => {
+			assert.deepEqual(G.putus.hasil, { jenis: 'diputus', jauh: true });
+			assert.equal(gh.dicabut, 1);
+			assert.deepEqual(kirimGh.find((x) => x.operation === 'github.auth_revoke'), { deviceId: 'dev-uji', operation: 'github.auth_revoke', payload: {} });
+			assert.deepEqual(G.ditolak.hasil, { jenis: 'ditolak' });
+			// Skenario kedua mengirim alamat verifikasi di host lain: diganti alamat tetap github.com.
+			assert.equal(G.ditolak.kode.url, 'https://github.com/login/device');
+			assert.deepEqual(G.batal.hasil, { jenis: 'batal' });
+			assert.equal(G.batal.kode.userCode, 'UJI3-KODE');
+			const setelahBatal = kirimGh.slice(kirimGh.findIndex((x, i) => x.operation === 'github.auth_start' && kirimGh.slice(0, i + 1).filter((y) => y.operation === 'github.auth_start').length === 3));
+			assert.deepEqual(setelahBatal.map((x) => x.operation), ['github.auth_start'], 'setelah dibatalkan tidak ada tagihan lagi dan tidak ada auth_revoke');
+			assert.deepEqual(G.akhir.keadaan, { jenis: 'belum' });
+			for (const u of G.akhir.dibuka) assert.equal(new URL(u).hostname, 'github.com');
+		});
+	} else {
+		dilewati.push('Tautkan GitHub: ekstensi yang diuji belum punya kait uji (versi lama)');
+	}
+
+	// --- Penyimpanan tanda masuk dan gerak avatar -------------------------------------------
+	if (h.rahasia) {
+		periksa('penyimpanan rahasia: tanpa penanda dari jendela sebelumnya tidak ada alarm ("belum tahu"); baris Akun tanpa tanda', () => {
+			assert.equal(h.rahasia.putusan, 'belum_tahu');
+			assert.equal(h.rahasia.tidakTersimpan, false);
+			assert.equal(h.rahasia.akun.keterangan, 'Mahasiswa Uji');
+			assert.ok(h.perintah.includes('dsworkbench.auth.explainStorage'));
+		});
+	}
+	if (h.animasi) {
+		periksa('gerak avatar Sosial: bawaan `selalu` di kerangka dan pesan panel; pengaturan `mati`/`ikutiSistem` berlaku tanpa memuat ulang; dikembalikan ke bawaan', () => {
+			const a = h.animasi;
+			assert.deepEqual(a.awal, { pengaturan: 'selalu', terkirim: 'selalu', kerangka: 'selalu' });
+			assert.deepEqual([a.mati.pengaturan, a.mati.terkirim], ['mati', 'mati'], 'pesan keadaan membawa mode baru ke panel yang sedang tampak');
+			assert.deepEqual([a.ikuti.pengaturan, a.ikuti.terkirim], ['ikutiSistem', 'ikutiSistem']);
+			assert.deepEqual([a.akhir.pengaturan, a.akhir.terkirim], ['selalu', 'selalu']);
+			assert.ok(a.kerangkaTetap, 'panel tidak dimuat ulang oleh perubahan pengaturan (kerangka ber-nonce yang sama)');
+			assert.ok(a.css.selaluSaatKurangiGerak && a.css.mati && a.css.tersembunyi, 'kerangka memuat aturan ketiga mode');
+		});
 	}
 
 	// Agent menutup diri begitu pipanya ditutup (stdin EOF) dan pamit ke server beberapa puluh

@@ -236,12 +236,23 @@ exports.activate = async () => {
 		if (env.DSW_LAB_AKSI === 'masuk' || (env.DSW_LAB_AKSI === 'masuk-buka-folder' && !kedua)) void vscode.commands.executeCommand('dsworkbench.login');
 		const batas = Date.now() + 90000;
 		while (!fs.existsSync(env.DSW_LAB_ISYARAT) && Date.now() < batas) await tidur(100);
+		// Keadaan penyimpanan tanda masuk menurut ekstensi (perintah diagnostik; tidak ada di versi lama).
+		const rahasia = () => Promise.resolve(vscode.commands.executeCommand('dsworkbench.auth.storageState')).then((r) => r, () => null);
 		if (env.DSW_LAB_AKSI === 'masuk-buka-folder' && !kedua) {
 			fs.writeFileSync(penanda, String(process.ppid));
 			fs.rmSync(env.DSW_LAB_ISYARAT, { force: true });
 			await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(env.DSW_WS_COURSE), { forceReuseWindow: true });
 			return;
 		}
+		// 'lihat-muat-ulang': catat keadaan, muat ulang jendela (buka folder), catat lagi di aktivasi kedua.
+		if (env.DSW_LAB_AKSI === 'lihat-muat-ulang' && !kedua) {
+			fs.writeFileSync(penanda, JSON.stringify({ ppid: process.ppid, rahasia: await rahasia() }));
+			fs.rmSync(env.DSW_LAB_ISYARAT, { force: true });
+			await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(env.DSW_WS_COURSE), { forceReuseWindow: true });
+			return;
+		}
+		if (env.DSW_LAB_AKSI === 'lihat-muat-ulang') hasil.pertama = JSON.parse(fs.readFileSync(penanda, 'utf8'));
+		hasil.rahasia = await rahasia();
 		hasil.ppid = process.ppid;
 		const tab = vscode.window.tabGroups.all.flatMap((g) => g.tabs);
 		hasil.tab = tab.map((t) => t.label);
@@ -259,19 +270,20 @@ exports.activate = async () => {
  * syarat di sisi server sebelum aplikasi boleh ditutup). `bunuhSetelahHasil`: SIGKILL proses
  * utama begitu suite menulis hasil.
  */
-async function tahap(nama, { lab, folder, bunuhSetelahHasil = false, biasa = false, aksi = 'lihat', siap = () => true }) {
+async function tahap(nama, { lab, folder, bunuhSetelahHasil = false, biasa = false, aksi = 'lihat', siap = () => true, profil = userData, argTambahan = [] }) {
 	const out = path.join(tmp, `hasil-${nama}.json`);
 	const isyarat = path.join(tmp, `isyarat-${nama}`);
 	const argumen = [
 		`--extensionDevelopmentPath=${akarMuat}`,
 		biasa ? `--extensionDevelopmentPath=${pembantu}` : `--extensionTestsPath=${SUITE}`,
-		`--user-data-dir=${userData}`,
+		`--user-data-dir=${profil}`,
 		`--extensions-dir=${extDir}`,
 		'--disable-workspace-trust',
 		'--skip-welcome',
 		'--skip-release-notes',
 		'--disable-updates',
 		'--new-window',
+		...argTambahan,
 		...(process.env.DSW_ARG_APLIKASI ? JSON.parse(process.env.DSW_ARG_APLIKASI) : []),
 		...(folder ? [wsCourse] : []),
 	];
@@ -327,9 +339,14 @@ const periksa = (nama, f) => {
 let ringkasan = { lulus: false };
 let kode = 1;
 try {
+	// Profil kedua untuk bagian "penyimpanan rahasia di memori" (lihat akhir skrip): pengaturan yang sama.
+	const profilMemori = dir('um');
+	fs.mkdirSync(path.join(profilMemori, 'User'), { recursive: true });
 	fs.mkdirSync(path.join(userData, 'User'), { recursive: true });
-	fs.writeFileSync(
-		path.join(userData, 'User', 'settings.json'),
+	const tulisPengaturan = (isi) => {
+		for (const p of [userData, profilMemori]) fs.writeFileSync(path.join(p, 'User', 'settings.json'), isi);
+	};
+	tulisPengaturan(
 		JSON.stringify({
 			'dsworkbench.serverUrl': SERVER,
 			'dsworkbench.agent.command': perintahAgent,
@@ -385,7 +402,7 @@ try {
 	const n2 = permintaan.length;
 	const mulai2 = Date.now();
 	const pulih = () => permintaan.slice(n2).some((p) => p.jalur === '/api/auth/me' && p.otorisasi === `Bearer ${tA.token}`);
-	await tahap('biasa-2', { lab: false, folder: false, biasa: true, siap: () => pulih() || Date.now() - mulai2 > 20_000 });
+	const b2 = await tahap('biasa-2', { lab: false, folder: false, biasa: true, siap: () => pulih() || Date.now() - mulai2 > 20_000 });
 	// Tanpa penyimpanan rahasia OS (runner tanpa keyring, `--use-inmemory-secretstorage`) token
 	// memang tidak bertahan antar-peluncuran: pembanding dan uji pencabutannya dilewati.
 	const tersimpanDiOs = pulih();
@@ -396,6 +413,16 @@ try {
 		});
 	} else {
 		dilewati.push('pembanding "tanpa mode lab sesi pulih" dan pencabutan token tersimpan saat mode lab mulai: penyimpanan rahasia OS tidak tersedia di sini');
+	}
+	if (b1.rahasia && b2.rahasia) {
+		periksa(`penyimpanan tanda masuk dikenali dari perilaku lintas peluncuran (aplikasi sungguhan, ${tersimpanDiOs ? 'penyimpanan rahasia OS tersedia: "tersimpan", tanpa peringatan' : 'tanpa penyimpanan rahasia OS: "tidak tersimpan", dijelaskan'})`, () => {
+			// Masuk pertama: belum ada bukti ke arah mana pun (tulis-lalu-baca di jendela yang sama bukan bukti).
+			assert.deepEqual([b1.rahasia.putusan, b1.rahasia.tidakTersimpan, b1.rahasia.dijelaskan], ['belum_tahu', false, false]);
+			// Peluncuran berikutnya: rahasia uji dari peluncuran sebelumnya terbaca lagi atau tidak — sejalan dengan pulih/tidaknya sesi.
+			assert.deepEqual([b2.rahasia.putusan, b2.rahasia.tidakTersimpan, b2.rahasia.dijelaskan], tersimpanDiOs ? ['tersimpan', false, false] : ['tidak_tersimpan', true, true]);
+		});
+	} else {
+		dilewati.push('penyimpanan tanda masuk: ekstensi yang diuji belum punya perintah diagnostik (versi lama)');
 	}
 	const n3 = permintaan.length;
 	const b3 = await tahap('lab-1', { lab: true, folder: false, biasa: true, aksi: 'masuk', siap: sudahMasuk(1) });
@@ -564,11 +591,36 @@ try {
 		assert.deepEqual([s.rahasia, s.akun], [false, false]);
 		const jejak = s.kunci.filter((k) => k.startsWith('dsworkbench.') && !k.startsWith('dsworkbench.update.') && !k.startsWith('dsworkbench.lab.') && !['dsworkbench.temaBawaanDiterapkan', 'dsworkbench.sambutanDitampilkan'].includes(k));
 		assert.deepEqual(jejak, []);
+		// Tolak-bawaan sepenuhnya (0.1.7): yang tersisa HANYA kunci milik komputer, apa pun awalannya.
+		const milikKomputer = (k) => k.startsWith('dsworkbench.update.') || k.startsWith('dsworkbench.lab.') || ['dsworkbench.temaBawaanDiterapkan', 'dsworkbench.sambutanDitampilkan'].includes(k);
+		assert.deepEqual(s.kunci.filter((k) => !milikKomputer(k)), [], 'globalState: tidak ada kunci selain milik komputer');
+		assert.deepEqual((s.kunciRuang ?? []).filter((k) => !milikKomputer(k)), [], 'workspaceState: tidak ada kunci selain milik komputer');
 		assert.deepEqual(adaDiDisk(userData, t1.token), [], 'token sesi lab tertulis di profil aplikasi');
 		assert.deepEqual(adaDiDisk(stateDir, t1.token), []);
 		assert.ok(!fs.readFileSync(catatanPenjaga, 'utf8').includes(t1.token));
 		assert.ok(penjaga().some((p) => p.peristiwa === 'dilupakan' && p.alasan === 'menganggur'), 'penjaga melupakan token saat jendela keluar');
 	});
+
+	if (m.jejakKini) {
+		periksa('celah pembersihan mode lab tertutup: pilihan server SQL dan NILAI variabel psql (kunci `dsw.sql.*` lama maupun `dsworkbench.sql.*`), pilihan panel Pergudangan Data, dan kunci berawalan lain ikut terhapus saat keluar — di globalState dan workspaceState', () => {
+			const j = m.jejakKini;
+			// Sebelum keluar jejak itu memang ada di kedua penyimpanan…
+			for (const k of j.ditanam) assert.ok(j.global.includes(k) && j.ruang.includes(k), `${k} tertanam`);
+			// …dan sesudahnya tidak satu pun tersisa.
+			const s = m.menganggur.tersimpan;
+			for (const k of j.ditanam) assert.ok(!s.kunci.includes(k) && !s.kunciRuang.includes(k), `${k} masih ada setelah keluar`);
+			assert.ok(!s.kunciRuang.includes('dsworkbench.lab.sesiRuang'), 'penanda sesi folder kerja ikut dibuang setelah jejaknya bersih');
+			assert.deepEqual(adaDiDisk(userData, 'JEJAK-PENGGUNA'), [], 'nilai jejak tidak tertinggal di berkas profil aplikasi');
+		});
+		periksa('jejak workspaceState milik sesi lab LAIN di folder kerja yang sama dibuang begitu sesi baru mulai (folder itu tidak terbuka saat pemiliknya keluar)', () => {
+			const l = m.jejakLama;
+			for (const k of l.ditanam) assert.ok(l.sebelum.includes(k), `${k} tertanam sebelum masuk`);
+			for (const k of l.ditanam) assert.ok(!l.sesudahMasuk.includes(k), `${k} milik sesi lain masih terbaca setelah masuk`);
+			assert.ok(l.sesudahMasuk.includes('dsworkbench.lab.sesiRuang'), 'folder kerja ditandai dengan sesi yang sekarang');
+		});
+	} else {
+		dilewati.push('pembersihan kunci SQL: ekstensi yang diuji belum punya kait uji (versi lama)');
+	}
 
 	// --- paksa: aplikasi dimatikan paksa ---------------------------------------------------------
 	const p = await tahap('paksa', { lab: true, folder: true, bunuhSetelahHasil: true });
@@ -609,6 +661,34 @@ try {
 		assert.equal(daftar[0].otorisasi, `Bearer ${tL.token}`);
 		assert.ok(baru.indexOf(daftar[0]) > baru.indexOf(ganti[0]));
 	});
+	// === Penyimpanan rahasia hanya di memori (seperti aplikasi yang tidak dapat memakai Keychain/keyring) ===
+	// Profil baru + `--use-inmemory-secretstorage`: VS Code menyimpan rahasia per jendela di memori, persis
+	// keadaan "An OS keyring couldn't be identified…". Tanda masuk hilang tiap aplikasi/jendela dimuat ulang.
+	if (b1.rahasia) {
+		dukungGantikan = true;
+		const MEMORI = ['--use-inmemory-secretstorage'];
+		const iM = masuk.length;
+		const m1 = await tahap('memori-1', { lab: false, folder: false, biasa: true, aksi: 'masuk', siap: sudahMasuk(iM), profil: profilMemori, argTambahan: MEMORI });
+		const tM = masuk[iM];
+		const nM = permintaan.length;
+		const mulaiM = Date.now();
+		const m2 = await tahap('memori-2', { lab: false, folder: false, biasa: true, aksi: 'lihat-muat-ulang', siap: () => Date.now() - mulaiM > 7_000, profil: profilMemori, argTambahan: MEMORI });
+		periksa('tanda masuk tidak tersimpan (rahasia hanya di memori): dikenali pada peluncuran berikutnya, dijelaskan SEKALI per sesi aplikasi (tidak diulang setelah jendela dimuat ulang), tanpa alarm saat masuk pertama', () => {
+			assert.ok(tM, 'masuk tidak terjadi');
+			// Masuk pertama di profil baru: belum ada penanda → tidak ada alarm.
+			assert.deepEqual([m1.rahasia.putusan, m1.rahasia.tidakTersimpan, m1.rahasia.dijelaskan], ['belum_tahu', false, false]);
+			// Aplikasi dibuka lagi: token tidak ada (tidak satu pun permintaan ber-token)…
+			assert.equal(permintaan.slice(nM).filter((x) => x.otorisasi === `Bearer ${tM.token}`).length, 0, 'sesi tidak pulih');
+			assert.equal(masuk.length, iM + 1, 'tidak ada masuk baru');
+			// …penanda dari peluncuran sebelumnya ada, rahasia ujinya hilang → "tidak tersimpan", dijelaskan.
+			assert.deepEqual([m2.pertama.rahasia.putusan, m2.pertama.rahasia.tidakTersimpan, m2.pertama.rahasia.dijelaskan], ['tidak_tersimpan', true, true]);
+			// Jendela dimuat ulang (extension host baru, proses utama yang sama): tetap dikenali, TIDAK dijelaskan lagi.
+			assert.equal(m2.aktivasiKedua, true);
+			assert.equal(m2.ppid, m2.pertama.ppid, 'induk extension host = proses utama aplikasi yang sama');
+			assert.deepEqual([m2.rahasia.putusan, m2.rahasia.tidakTersimpan, m2.rahasia.dijelaskan], ['tidak_tersimpan', true, false]);
+			assert.deepEqual(adaDiDisk(profilMemori, tM.token), [], 'token tidak tertulis di profil aplikasi');
+		});
+	}
 	periksa('semua permintaan ber-token memakai bearer tanpa cookie; kredensial perangkat hanya dikirim ke rute agent', () => {
 		for (const x of permintaan) {
 			assert.equal(x.cookie, undefined);

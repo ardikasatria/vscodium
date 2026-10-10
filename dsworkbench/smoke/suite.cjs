@@ -241,6 +241,9 @@ async function run() {
       const awal = potret();
       const html = g.keadaan().html;
       const muatSebelumSiap = await g.pesan({ tindakan: "muat-dataset" });
+      const langkahCek = () => /class="langkah langkah--([a-z]+)"/.exec(g.keadaan().bagian?.["b-cek"] ?? "")?.[1];
+      const cekSebelumNyala = await g.pesan({ tindakan: "periksa" });
+      const cekMati = await api.uji.checkpoint(P, MP, false);
       const nyalakan = await g.pesan({ tindakan: "nyalakan" });
       await sampai(() => g.keadaan().model?.katalog.jenis === "siap", 3e4, "").catch(() => void 0);
       const menyala = potret();
@@ -249,6 +252,26 @@ async function run() {
       const muat = await g.pesan({ tindakan: "muat-dataset" });
       await sampai(() => (g.keadaan().bagian?.["b-layanan"] ?? "").includes("12.345 baris") && g.keadaan().model?.katalog.jenis === "siap", 2e4, "").catch(() => void 0);
       const setelahMuat = potret();
+      const cekGagalHasil = await g.pesan({ tindakan: "periksa" });
+      const cekGagal = { hasil: cekGagalHasil, bagian: g.keadaan().bagian?.["b-cek"] ?? "", langkah: langkahCek() };
+      const cekLulusHasil = await g.pesan({ tindakan: "periksa" });
+      const cekLulus = { hasil: cekLulusHasil, bagian: g.keadaan().bagian?.["b-cek"] ?? "", langkah: langkahCek() };
+      const cekModeTugas = await api.uji.checkpoint(P, MP, true);
+      const janjiHenti = g.pesan({ tindakan: "periksa" });
+      await sampai(() => (g.keadaan().bagian?.["b-cek"] ?? "").includes('data-tindakan="hentikan-periksa"'), 15e3, "").catch(() => void 0);
+      await tidur(1500);
+      const pesanHenti = await g.pesan({ tindakan: "hentikan-periksa" });
+      const cekDihentikan = { hasil: await janjiHenti, pesanHenti, bagian: g.keadaan().bagian?.["b-cek"] ?? "" };
+      const cek = {
+        sebelumNyala: cekSebelumNyala,
+        mati: cekMati,
+        gagal: cekGagal,
+        lulus: cekLulus,
+        modeTugas: cekModeTugas,
+        dihentikan: cekDihentikan,
+        pohon: await api.uji.pemeriksa(P, MP),
+        pohonPython: await api.uji.pemeriksa(C, M2)
+      };
       const hasilSkema = await g.pesan({ tindakan: "pilih-skema", indeks: 1 });
       const dSkema = g.keadaan().model?.er.diagram;
       const pilihSkema = { hasil: hasilSkema, kotak: dSkema?.kotak.length, luar: dSkema?.kotak.filter((k) => k.luar).map((k) => k.label), garis: dSkema?.garis.length };
@@ -271,9 +294,29 @@ async function run() {
         await g.pesan("nyalakan")
       ];
       const hasilModul = await g.pesan({ tindakan: "pilih-modul", indeks: 1 });
-      const modulTerkunci = { hasil: hasilModul, kerja: g.keadaan().bagian?.["b-kerja"] ?? "", dataset: g.keadaan().bagian?.["b-dataset"] ?? "" };
-      hasil["gudang"] = { berlayanan, bukanLayanan, tab: tab?.label, pesanPanel: g.keadaan().pesanPanel, siapPanel: g.keadaan().siapPanel, html, awal, muatSebelumSiap, nyalakan, menyala, siapkan, setelahSiapkan, muat, setelahMuat, pilihSkema, saring, bukaBerkas, bukaBerkasBelumAda, ditolak, modulTerkunci };
+      const modulTerkunci = { hasil: hasilModul, terpilih: g.keadaan().model?.modul[g.keadaan().model?.modulTerpilih ?? -1]?.id };
+      const hasilLain = await g.pesan({ tindakan: "pilih-modul", indeks: 2 });
+      const modulLain = { hasil: hasilLain, dataset: g.keadaan().bagian?.["b-dataset"] ?? "", cek: g.keadaan().bagian?.["b-cek"] ?? "" };
+      hasil["gudang"] = { cek, modulLain, berlayanan, bukanLayanan, tab: tab?.label, pesanPanel: g.keadaan().pesanPanel, siapPanel: g.keadaan().siapPanel, html, awal, muatSebelumSiap, nyalakan, menyala, siapkan, setelahSiapkan, muat, setelahMuat, pilihSkema, saring, bukaBerkas, bukaBerkasBelumAda, ditolak, modulTerkunci };
     }
+    if (api.uji.github) {
+      const gh = api.uji.github;
+      const baris = () => {
+        const b = api.uji.lingkungan().barisStatus?.find((x) => x.id === "github");
+        return b && { keterangan: b.keterangan, konteks: b.konteks };
+      };
+      const awal = { ...await gh.keadaan(true), baris: baris() };
+      const taut = await gh.tautkan();
+      const tertaut = { ...await gh.keadaan(), baris: baris() };
+      const hasilPutus = await gh.putuskan();
+      const putus = { hasil: hasilPutus, ...await gh.keadaan(), baris: baris() };
+      const ditolak = await gh.tautkan();
+      const batal = await gh.tautkan({ batalSetelahKode: true });
+      await tidur(2500);
+      hasil["github"] = { awal, taut, tertaut, putus, ditolak, batal, akhir: await gh.keadaan(true) };
+      hasil["lingkungan"] = api.uji.lingkungan();
+    }
+    if (api.uji.rahasia) hasil["rahasia"] = await api.uji.rahasia();
     {
       const s = api.uji.sosial;
       await s.fokus();
@@ -302,6 +345,36 @@ async function run() {
           await s.pesan({ tindakan: "kirim", id: "usr-asing", teks: "bukan teman di daftar" }),
           await s.pesan({ tindakan: "buka-tautan", id: "smsg-9999", indeks: 0 })
         ]
+      };
+    }
+    {
+      const s = api.uji.sosial;
+      const c = vscode.workspace.getConfiguration("dsworkbench");
+      const G = vscode.ConfigurationTarget.Global;
+      await s.fokus();
+      const kerangka = () => /<body data-animasi="([A-Za-z]+)">/.exec(s.keadaan().html)?.[1];
+      const html = s.keadaan().html;
+      const awal = { ...s.keadaan().animasi, kerangka: kerangka() };
+      const ubah = async (nilai) => {
+        await c.update("social.animations", nilai, G);
+        await sampai(() => s.keadaan().animasi.terkirim === (nilai ?? "selalu"), 1e4, "").catch(() => void 0);
+        return s.keadaan().animasi;
+      };
+      const mati = await ubah("mati");
+      const ikuti = await ubah("ikutiSistem");
+      const akhir = await ubah(void 0);
+      hasil["animasi"] = {
+        awal,
+        mati,
+        ikuti,
+        akhir,
+        // Kerangka ber-nonce acak: sama persis = panel yang tampak tidak dimuat ulang.
+        kerangkaTetap: s.keadaan().html === html,
+        css: {
+          selaluSaatKurangiGerak: /@media \(prefers-reduced-motion: reduce\) \{\nbody\[data-animasi='selalu'\] \.avatar\.gerak:not\(\.hidup\) \.avatar__gambar \{ animation: [^;]+ !important; \}/.test(html),
+          mati: html.includes("body[data-animasi='mati'] .avatar .avatar__gambar"),
+          tersembunyi: html.includes("body.tersembunyi .avatar .avatar__gambar")
+        }
       };
     }
     {
