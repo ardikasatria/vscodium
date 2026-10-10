@@ -3,7 +3,7 @@
 # ekstensi  : fork     = dsworkbench/extension di cabang ini (harus build yang sama dengan bundel uji)
 #             tertanam = ekstensi di dalam aplikasi rilis itu (pakai setelah aplikasi dibangun ulang dengan build ini)
 # lingkungan: ya|tidak = uji pemasang lingkungan sungguhan (pip dari PyPI; Windows memasang Python resmi)
-tag=dsworkbench-0.1.0-uji.1
-ekstensi=fork
+tag=dsworkbench-0.1.0-uji.2
+ekstensi=tertanam
 lingkungan=ya
-picu=2026-10-10T02:41:29Z
+picu=2026-10-10T04:15:58Z

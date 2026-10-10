@@ -65,11 +65,7 @@ jobs:
             pola: '^dsworkbench_[0-9.]+_amd64\.deb$'
             rahasia: memori
             lingkungan: ya
-          - id: linux-appimage
-            os: ubuntu-latest
-            pola: '^DSWorkbench-[0-9.]+-anylinux-x86_64\.AppImage$'
-            rahasia: memori
-            lingkungan: tidak
+          # linux-appimage dikeluarkan: rilis uji 2 tidak menyertakan AppImage (belum terbukti berjalan).
           - id: macos-x64
             # Intel. `macos-13` sudah dipensiunkan; label Intel gratis yang tersisa: macos-15-intel, macos-26-intel.
             os: macos-15-intel
