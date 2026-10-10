@@ -44,7 +44,8 @@ fi
 DAPAT="$( sha256 "${VSIX}" )"
 [[ "${DAPAT}" == "${SHA256}" ]] || { echo "ikon_bawaan: sha256 paket tidak cocok (dapat ${DAPAT})" >&2; exit 1; }
 
-unzip -q "${VSIX}" 'extension/*' -d "${KERJA}/isi"
+# Seluruh arsip diekstrak: pola 'extension/*' tidak menjangkau subfolder pada unzip di runner Windows.
+unzip -q "${VSIX}" -d "${KERJA}/isi"
 SRC="${KERJA}/isi/extension"
 PKG="${SRC}/package.json"
 
@@ -54,7 +55,8 @@ jq -e --arg v "${VERSI}" --arg id "${ID_TEMA}" '
   and ([.contributes.iconThemes[]? | select(.id == $id)] | length == 1)' "${PKG}" > /dev/null \
   || { echo "ikon_bawaan: isi paket tidak sesuai harapan" >&2; exit 1; }
 grep -q 'MIT License' "${SRC}/LICENSE.txt" || { echo "ikon_bawaan: berkas lisensi MIT tidak ada di paket" >&2; exit 1; }
-JALUR_TEMA="$( jq -r --arg id "${ID_TEMA}" '.contributes.iconThemes[] | select(.id == $id) | .path' "${PKG}" )"
+# tr: jq di Windows mengakhiri baris dengan CRLF.
+JALUR_TEMA="$( jq -r --arg id "${ID_TEMA}" '.contributes.iconThemes[] | select(.id == $id) | .path' "${PKG}" | tr -d '\r' )"
 [[ -f "${SRC}/${JALUR_TEMA#./}" ]] || { echo "ikon_bawaan: berkas tema ikon ${JALUR_TEMA} tidak ada" >&2; exit 1; }
 
 rm -rf "${DEST:?}/${NAMA_FOLDER}"
