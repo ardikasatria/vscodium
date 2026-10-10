@@ -1,0 +1,278 @@
+# Uji asap DSWorkbench pada aplikasi TERPASANG di Windows, Linux, dan macOS (Intel + Apple Silicon).
+#
+# Salin ke fork publik sebagai .github/workflows/dsworkbench-smoke.yml (cabang `dsworkbench`).
+# Sumber: apps/ide/smoke/workflow/ di repo utama. Bundel uji ada di dsworkbench/smoke/
+# (hasil `npm run smoke:bundle`).
+#
+# Pemicu:
+#   - push ke cabang `dsworkbench` yang mengubah dsworkbench/smoke/PICU (parameter dibaca dari berkas itu);
+#   - workflow_dispatch (hanya muncul bila berkas ini juga ada di cabang bawaan repo).
+#
+# Tanpa rahasia; hanya membaca rilis publik repo ini.
+name: dsworkbench-smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag rilis yang diuji
+        type: string
+        default: dsworkbench-0.1.0-uji.1
+      ekstensi:
+        description: "Ekstensi yang diuji: tertanam di aplikasi, atau dsworkbench/extension di cabang ini"
+        type: choice
+        options:
+          - fork
+          - tertanam
+        default: fork
+      lingkungan:
+        description: Jalankan uji pemasang lingkungan sungguhan (pip dari PyPI; Windows juga memasang Python resmi)
+        type: boolean
+        default: true
+  push:
+    branches:
+      - dsworkbench
+    paths:
+      - dsworkbench/smoke/PICU
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dsworkbench-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  asap:
+    name: ${{ matrix.id }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: windows-x64
+            os: windows-latest
+            pola: '^DSWorkbenchUserSetup-x64-[0-9.]+\.exe$'
+            rahasia: os
+            lingkungan: ya
+          - id: linux-deb
+            os: ubuntu-latest
+            pola: '^dsworkbench_[0-9.]+_amd64\.deb$'
+            rahasia: memori
+            lingkungan: ya
+          - id: linux-appimage
+            os: ubuntu-latest
+            pola: '^DSWorkbench-[0-9.]+-anylinux-x86_64\.AppImage$'
+            rahasia: memori
+            lingkungan: tidak
+          - id: macos-x64
+            # Intel. `macos-13` sudah dipensiunkan; label Intel gratis yang tersisa: macos-15-intel, macos-26-intel.
+            os: macos-15-intel
+            pola: '^DSWorkbench-darwin-x64-[0-9.]+\.zip$'
+            rahasia: memori
+            lingkungan: ya
+          - id: macos-arm64
+            os: macos-15
+            pola: '^DSWorkbench-darwin-arm64-[0-9.]+\.zip$'
+            rahasia: memori
+            lingkungan: tidak
+    env:
+      ID: ${{ matrix.id }}
+      POLA_ASET: ${{ matrix.pola }}
+      SIMPANAN_RAHASIA: ${{ matrix.rahasia }}
+      LINGKUNGAN_MATRIKS: ${{ matrix.lingkungan }}
+      MASUKAN_TAG: ${{ inputs.tag }}
+      MASUKAN_EKSTENSI: ${{ inputs.ekstensi }}
+      MASUKAN_LINGKUNGAN: ${{ inputs.lingkungan }}
+      PERISTIWA: ${{ github.event_name }}
+      REPO: ${{ github.repository }}
+      SMOKE: dsworkbench/smoke
+      HASIL: ${{ github.workspace }}/hasil
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # workflow_dispatch berjalan dari cabang bawaan; bundel uji ada di cabang dsworkbench.
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'dsworkbench' || github.sha }}
+          persist-credentials: false
+          sparse-checkout: |
+            dsworkbench
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      # Local Runner dan kernel uji hanya butuh pustaka standar; 3.12 = versi terendah yang diterima pemasang lingkungan.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Parameter
+        run: |
+          set -euo pipefail
+          ambil() { sed -n "s/^$1=//p" "${SMOKE}/PICU" | head -n 1 | tr -d '\r'; }
+          if [[ "${PERISTIWA}" == "workflow_dispatch" ]]; then
+            TAG="${MASUKAN_TAG}"; EKSTENSI="${MASUKAN_EKSTENSI}"
+            [[ "${MASUKAN_LINGKUNGAN}" == "true" ]] && LINGKUNGAN=ya || LINGKUNGAN=tidak
+          else
+            TAG="$(ambil tag)"; EKSTENSI="$(ambil ekstensi)"; LINGKUNGAN="$(ambil lingkungan)"
+          fi
+          TAG="${TAG:-dsworkbench-0.1.0-uji.1}"; EKSTENSI="${EKSTENSI:-fork}"; LINGKUNGAN="${LINGKUNGAN:-ya}"
+          [[ "${TAG}" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "tag tidak sah: ${TAG}" >&2; exit 1; }
+          [[ "${EKSTENSI}" == "tertanam" || "${EKSTENSI}" == "fork" ]] || { echo "ekstensi harus tertanam|fork" >&2; exit 1; }
+          [[ "${LINGKUNGAN}" == "ya" && "${LINGKUNGAN_MATRIKS}" == "ya" ]] && LINGKUNGAN=ya || LINGKUNGAN=tidak
+          mkdir -p "${HASIL}" unduh
+          {
+            echo "TAG=${TAG}"
+            echo "EKSTENSI=${EKSTENSI}"
+            echo "LINGKUNGAN=${LINGKUNGAN}"
+          } >> "${GITHUB_ENV}"
+          echo "tag=${TAG} ekstensi=${EKSTENSI} lingkungan=${LINGKUNGAN}"
+          node -e 'const m=require("./"+process.env.SMOKE+"/MANIFEST.json");console.log("bundel:",m.dibuat,"suite untuk ekstensi",m.ekstensi.versi,m.ekstensi.sha256.slice(0,12))'
+
+      - name: Unduh installer dan verifikasi SHA256SUMS
+        run: |
+          set -euo pipefail
+          DASAR="https://github.com/${REPO}/releases/download/${TAG}"
+          cd unduh
+          curl -fsSL --retry 3 --retry-delay 5 -o SHA256SUMS "${DASAR}/SHA256SUMS"
+          # Baris: "<sha256>  <nama berkas>"; tepat satu aset harus cocok dengan pola matriks.
+          # (tanpa mapfile: bash bawaan macOS masih 3.2)
+          COCOK="$( awk '{print $2}' SHA256SUMS | sed 's/^\*//' | tr -d '\r' | grep -E "${POLA_ASET}" || true )"
+          JUMLAH="$( printf '%s\n' "${COCOK}" | grep -c . || true )"
+          [[ "${JUMLAH}" -eq 1 ]] || { echo "aset untuk ${ID} tidak tepat satu di SHA256SUMS (pola ${POLA_ASET}): ${COCOK:-tidak ada}" >&2; cat SHA256SUMS >&2; exit 1; }
+          ASET="${COCOK}"
+          curl -fsSL --retry 3 --retry-delay 5 -o "${ASET}" "${DASAR}/${ASET}"
+          HARAP="$( awk -v f="${ASET}" '{ n=$2; sub(/^\*/, "", n); sub(/\r$/, "", n); if (n == f) print $1 }' SHA256SUMS )"
+          if command -v sha256sum > /dev/null; then NYATA="$( sha256sum "${ASET}" | awk '{print $1}' )"; else NYATA="$( shasum -a 256 "${ASET}" | awk '{print $1}' )"; fi
+          [[ -n "${HARAP}" && "${HARAP}" == "${NYATA}" ]] || { echo "SHA-256 ${ASET} tidak cocok: harap ${HARAP}, nyata ${NYATA}" >&2; exit 1; }
+          # Windows: jalur bergaya Windows (D:/...), karena langkah berikutnya memakai PowerShell.
+          DI_SINI="$( pwd -W 2> /dev/null || pwd )"
+          echo "ASET=${DI_SINI}/${ASET}" >> "${GITHUB_ENV}"
+          echo "${ASET}: SHA-256 cocok (${NYATA})"
+          ls -l "${ASET}"
+
+      - name: Pasang (Windows, installer Inno senyap)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $log = Join-Path $env:HASIL 'pasang-windows.log'
+          $p = Start-Process -FilePath $env:ASET -Wait -PassThru -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/MERGETASKS=!runcode', "/LOG=$log"
+          if ($p.ExitCode -ne 0) { throw "installer keluar dengan kode $($p.ExitCode)" }
+          # Folder pasang: catatan uninstall (per pengguna), lalu letak bawaan.
+          $calon = @()
+          foreach ($akar in 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall', 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall') {
+            if (Test-Path $akar) {
+              Get-ChildItem $akar | ForEach-Object { Get-ItemProperty $_.PSPath } |
+                Where-Object { $_.DisplayName -like 'DSWorkbench*' -and $_.InstallLocation } |
+                ForEach-Object { $calon += $_.InstallLocation }
+            }
+          }
+          $calon += (Join-Path $env:LOCALAPPDATA 'Programs\DSWorkbench')
+          $app = $calon | Where-Object { Test-Path (Join-Path $_ 'resources\app\product.json') } | Select-Object -First 1
+          if (-not $app) { throw "folder pasang tidak ditemukan; dicari: $($calon -join '; ')" }
+          $app = $app.TrimEnd('\')
+          "APP=$app" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "terpasang di $app"
+          Get-ChildItem $app | Select-Object -First 20 | Format-Table Name, Length
+
+      - name: Pasang (Linux .deb lewat apt)
+        if: matrix.id == 'linux-deb'
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${ASET}" xvfb
+          PRODUK="$( dpkg -L dsworkbench | grep -E '/resources/app/product\.json$' | head -n 1 )"
+          [[ -f "${PRODUK}" ]] || { echo "product.json tidak ditemukan di paket terpasang" >&2; dpkg -L dsworkbench | head -n 40 >&2; exit 1; }
+          APP="$( dirname "$( dirname "$( dirname "${PRODUK}" )" )" )"
+          echo "APP=${APP}" >> "${GITHUB_ENV}"
+          echo "terpasang di ${APP}"; dpkg -s dsworkbench | sed -n '1,12p'
+
+      - name: Siapkan (Linux AppImage, diekstrak — runner tidak punya FUSE)
+        if: matrix.id == 'linux-appimage'
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends xvfb
+          chmod +x "${ASET}"
+          mkdir appimage && cd appimage
+          "${ASET}" --appimage-extract > /dev/null
+          PRODUK="$( find squashfs-root -path '*/resources/app/product.json' -not -path '*/node_modules/*' | head -n 1 )"
+          [[ -f "${PRODUK}" && -x squashfs-root/AppRun ]] || { echo "isi AppImage tidak seperti dugaan" >&2; ls -la squashfs-root >&2; exit 1; }
+          {
+            echo "APP=${PWD}/squashfs-root/AppRun"
+            echo "SUMBER_APLIKASI=${PWD}/$( dirname "${PRODUK}" )"
+            # chrome-sandbox hasil ekstraksi bukan setuid root.
+            echo "ARG_APLIKASI=--no-sandbox"
+          } >> "${GITHUB_ENV}"
+          echo "AppImage diekstrak; resources: $( dirname "${PRODUK}" )"
+
+      - name: Pasang (macOS, zip)
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          mkdir aplikasi
+          ditto -x -k "${ASET}" aplikasi
+          APP="$( find aplikasi -maxdepth 2 -name '*.app' -type d | head -n 1 )"
+          [[ -d "${APP}" ]] || { echo ".app tidak ditemukan di dalam zip" >&2; ls -la aplikasi >&2; exit 1; }
+          xattr -cr "${APP}"
+          echo "APP=${PWD}/${APP}" >> "${GITHUB_ENV}"
+          echo "arsitektur runner: $( uname -m )"; file "${APP}/Contents/MacOS/"* | head -n 3
+          codesign -dv "${APP}" 2>&1 | head -n 8 || true
+
+      - name: Uji asap (suite integrasi pada aplikasi terpasang)
+        run: |
+          set -euo pipefail
+          ARGUMEN=( --app "${APP}" --keluar "${HASIL}" --tmp "${RUNNER_TEMP}/t" --simpanan-rahasia "${SIMPANAN_RAHASIA}" )
+          [[ -n "${SUMBER_APLIKASI:-}" ]] && ARGUMEN+=( --sumber "${SUMBER_APLIKASI}" )
+          [[ -n "${ARG_APLIKASI:-}" ]] && ARGUMEN+=( --arg "${ARG_APLIKASI}" )
+          [[ "${EKSTENSI}" == "fork" ]] && ARGUMEN+=( --ext dsworkbench/extension )
+          if [[ "${RUNNER_OS}" == "Linux" ]]; then
+            xvfb-run -a --server-args="-screen 0 1280x1024x24" node "${SMOKE}/uji-asap.mjs" "${ARGUMEN[@]}"
+          else
+            node "${SMOKE}/uji-asap.mjs" "${ARGUMEN[@]}"
+          fi
+
+      - name: Uji pemasang lingkungan sungguhan
+        if: always() && env.LINGKUNGAN == 'ya' && env.APP != ''
+        run: |
+          set -euo pipefail
+          if [[ "${EKSTENSI}" == "fork" ]]; then
+            EXT="dsworkbench/extension"
+          else
+            EXT="$( node "${SMOKE}/uji-asap.mjs" --app "${APP}" ${SUMBER_APLIKASI:+--sumber "${SUMBER_APLIKASI}"} --cetak-ekstensi ya )"
+          fi
+          ARGUMEN=( --ext "${EXT}" --runtime "${RUNNER_TEMP}/rt" --profil python-data-science --keluar "${HASIL}/ringkasan-lingkungan.json" )
+          # Windows: jalur yang dialami mahasiswa — Python resmi diunduh (SHA-256 dipatok) dan dipasang ke folder runtime.
+          [[ "${RUNNER_OS}" == "Windows" ]] && ARGUMEN+=( --pasang-python )
+          node "${SMOKE}/uji-lingkungan.cjs" "${ARGUMEN[@]}" 2>&1 | tee "${HASIL}/uji-lingkungan.log"
+
+      - name: Ringkasan
+        if: always()
+        run: |
+          {
+            echo "## ${ID} — ${TAG:-?}"
+            for f in ringkasan-uji-asap.json ringkasan-lingkungan.json; do
+              if [[ -f "${HASIL}/${f}" ]]; then
+                echo; echo "### ${f}"; echo '```json'
+                node -e 'const r=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));const {pemeriksaan,langkah,...s}=r;console.log(JSON.stringify({...s,langkah:langkah&&langkah.map(l=>({nama:l.nama,lulus:l.lulus,detik:l.detik,galat:l.galat}))},null,1));if(pemeriksaan)console.log("\npemeriksaan lulus:\n- "+pemeriksaan.join("\n- "))' "${HASIL}/${f}"
+                echo '```'
+              else
+                echo; echo "_${f} tidak ada_"
+              fi
+            done
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: uji-asap-${{ matrix.id }}
+          path: hasil/
+          retention-days: 14
+          if-no-files-found: warn

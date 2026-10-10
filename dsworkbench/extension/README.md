@@ -1,7 +1,7 @@
 # DSWorkbench — ekstensi siap tanam
 
 Hasil bangun `apps/ide/extension` (ekstensi `sditera.dsworkbench` 0.1.0).
-Local Runner bawaan: 0.4.10 @ f84596e.
+Local Runner bawaan: 0.4.10 @ bc78310.
 
 ## Menanam ke aplikasi bermerek (fork skrip VSCodium)
 
@@ -12,15 +12,13 @@ Local Runner bawaan: 0.4.10 @ f84596e.
    Nama folder bebas; yang dibaca adalah `package.json` di dalamnya.
 2. Jangan menjalankan `npm install` di sini: ekstensi sudah dibundel menjadi satu berkas
    (`dist/extension.js`) dan tidak punya dependensi runtime.
-3. Tema bawaan diatur di sisi produk, bukan oleh ekstensi. Di `product.json`:
-
-   ```json
-   "configurationDefaults": { "workbench.colorTheme": "DSWorkbench Gelap" }
-   ```
-
-   Tanpa itu, ekstensi menerapkan "DSWorkbench Gelap" sekali saat pertama aktif bila
-   nama aplikasi (`nameShort`/`nameLong`) diawali `DSWorkbench` dan pengguna belum
-   memilih tema.
+3. Tema bawaan dan izin pembaruan diatur saat menanam, bukan di folder ini: pakai
+   `embed_extension.sh` + `tema_bawaan.sh` dari `apps/ide/product/` (menambahkan
+   `configurationDefaults` ke salinan tertanam) dan tambalan `product.json` di sana
+   (`builtInExtensionsEnabledWithAutoUpdates`). Kunci `configurationDefaults` di
+   `product.json` tidak dibaca aplikasi desktop. Sebagai jaring pengaman, ekstensi
+   menerapkan "DSWorkbench Gelap" sekali saat pertama aktif bila nama aplikasi diawali
+   `DSWorkbench` dan pengguna belum memilih tema.
 4. Di macOS, tanda tangani aplikasi SETELAH folder ini disalin. `agent-payload/` berisi
    sumber Python saja (tanpa biner); ekstensi menjalankannya dengan
    `PYTHONDONTWRITEBYTECODE=1` sehingga tidak ada berkas yang ditulis ke dalam bundel.
@@ -31,7 +29,7 @@ Local Runner bawaan: 0.4.10 @ f84596e.
 |---|---|
 | `package.json` | manifest ekstensi (perintah, pengaturan, tema, view) |
 | `dist/extension.js` | kode ekstensi, satu berkas |
-| `media/` | ikon bilah aktivitas |
+| `media/` | ikon bilah aktivitas; skrip panel (`panel/`); KaTeX (`katex/`, MIT, huruf OFL); pemutar Lottie (`lottie/`, MIT); karakter Bravais (`bravais/`) |
 | `themes/` | `DSWorkbench Gelap` dan `DSWorkbench Terang` |
 | `agent-payload/` | sumber Local Runner + `MANIFEST.json` (versi, commit, sha256 tiap berkas) |
 

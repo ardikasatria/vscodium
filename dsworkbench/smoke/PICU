@@ -1,0 +1,9 @@
+# Mengubah berkas ini di cabang dsworkbench menjalankan workflow dsworkbench-smoke.
+# tag       : rilis yang diuji
+# ekstensi  : fork     = dsworkbench/extension di cabang ini (harus build yang sama dengan bundel uji)
+#             tertanam = ekstensi di dalam aplikasi rilis itu (pakai setelah aplikasi dibangun ulang dengan build ini)
+# lingkungan: ya|tidak = uji pemasang lingkungan sungguhan (pip dari PyPI; Windows memasang Python resmi)
+tag=dsworkbench-0.1.0-uji.1
+ekstensi=fork
+lingkungan=ya
+picu=2026-10-10T00:07:11Z

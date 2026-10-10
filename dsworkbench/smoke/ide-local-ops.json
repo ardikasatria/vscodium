@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "source": "services/workbench-api/src/workbench_api/local_ops.py",
+  "ops": [
+    "workspace.ensure",
+    "workspace.list",
+    "workspace.info",
+    "workspace.tree",
+    "workspace.read_file",
+    "workspace.write_file",
+    "workspace.preview",
+    "jupyter.kernel_start",
+    "jupyter.kernel_stop",
+    "jupyter.kernel_status",
+    "jupyter.interrupt",
+    "jupyter.restart",
+    "jupyter.execute",
+    "job.status",
+    "job.cancel",
+    "sql.execute",
+    "sql.run_file",
+    "db.catalog"
+  ],
+  "needServices": [
+    "db.catalog",
+    "sql.execute",
+    "sql.run_file"
+  ]
+}

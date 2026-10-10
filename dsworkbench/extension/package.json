@@ -1,7 +1,7 @@
 {
   "name": "dsworkbench",
   "displayName": "DSWorkbench",
-  "description": "Kelas, notebook, tugas, checkpoint, SQL, dan terminal praktikum Sains Data ITERA, dijalankan di komputer Anda lewat Local Runner.",
+  "description": "Kelas, naskah modul, notebook, tugas, checkpoint, SQL, terminal praktikum, dan asisten belajar Bravais untuk Sains Data ITERA, dijalankan di komputer Anda lewat Local Runner.",
   "version": "0.1.0",
   "publisher": "sditera",
   "private": true,
@@ -66,6 +66,42 @@
           "default": true,
           "scope": "machine",
           "markdownDescription": "Jalankan salinan Local Runner yang dibawa aplikasi ini (`agent-payload/`) dengan lingkungan Python praktikum di folder runtime (dipasang lewat \"Siapkan lingkungan praktikum…\", atau warisan aplikasi DSWorkbench lama). Matikan hanya untuk memakai Local Runner dari pemasangan aplikasi lama apa adanya."
+        },
+        "dsworkbench.update.mode": {
+          "type": "string",
+          "enum": [
+            "otomatis",
+            "tanya",
+            "mati"
+          ],
+          "enumDescriptions": [
+            "Pembaruan DSWorkbench diunduh dan dipasang sendiri; Anda hanya diminta memuat ulang jendela saat tidak ada yang berjalan.",
+            "Tanya dulu sebelum mengunduh pembaruan.",
+            "Tidak memeriksa pembaruan sendiri. Perintah \"DSWorkbench: Periksa pembaruan\" tetap dapat dipakai."
+          ],
+          "default": "otomatis",
+          "scope": "application",
+          "markdownDescription": "Cara DSWorkbench memperbarui dirinya (ekstensi dan Local Runner di dalamnya). Aplikasinya sendiri tidak pernah diperbarui otomatis; bila ada versi baru, Anda diberi tahu dengan tautan ke halaman unduh."
+        },
+        "dsworkbench.update.channel": {
+          "type": "string",
+          "enum": [
+            "stabil",
+            "uji"
+          ],
+          "enumDescriptions": [
+            "Rilis yang sudah diuji (bawaan).",
+            "Rilis uji: lebih cepat menerima perubahan, mungkin belum stabil."
+          ],
+          "default": "stabil",
+          "scope": "application",
+          "markdownDescription": "Kanal pembaruan DSWorkbench."
+        },
+        "dsworkbench.social.notifications": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "markdownDescription": "Tampilkan notifikasi saat ada pesan baru dari teman sekelas ketika panel Sosial tidak terlihat. Notifikasi hanya menyebut pengirim, tidak pernah isi pesan."
         }
       }
     },
@@ -86,6 +122,18 @@
         "command": "dsworkbench.showMenu",
         "title": "Menu",
         "category": "DSWorkbench"
+      },
+      {
+        "command": "dsworkbench.home",
+        "title": "Beranda",
+        "category": "DSWorkbench",
+        "icon": "$(home)"
+      },
+      {
+        "command": "dsworkbench.bravais.open",
+        "title": "Buka Bravais",
+        "category": "DSWorkbench",
+        "icon": "$(comment-discussion)"
       },
       {
         "command": "dsworkbench.refreshKelas",
@@ -131,6 +179,12 @@
         "title": "Siapkan berkas modul",
         "category": "DSWorkbench",
         "icon": "$(cloud-download)"
+      },
+      {
+        "command": "dsworkbench.openMaterial",
+        "title": "Buka naskah modul",
+        "category": "DSWorkbench",
+        "icon": "$(book)"
       },
       {
         "command": "dsworkbench.refreshTugas",
@@ -264,6 +318,18 @@
         "title": "Tampilkan log pemasangan lingkungan",
         "category": "DSWorkbench",
         "icon": "$(output)"
+      },
+      {
+        "command": "dsworkbench.update.check",
+        "title": "Periksa pembaruan",
+        "category": "DSWorkbench",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "dsworkbench.social.open",
+        "title": "Buka Sosial",
+        "category": "DSWorkbench",
+        "icon": "$(organization)"
       }
     ],
     "viewsContainers": {
@@ -278,6 +344,13 @@
         {
           "id": "dsworkbenchPanel",
           "title": "DSWorkbench SQL",
+          "icon": "media/dsworkbench.svg"
+        }
+      ],
+      "secondarySidebar": [
+        {
+          "id": "dsworkbenchBravais",
+          "title": "Bravais",
           "icon": "media/dsworkbench.svg"
         }
       ]
@@ -314,6 +387,22 @@
         {
           "id": "dsworkbench.sqlHasil",
           "name": "Hasil SQL",
+          "type": "webview",
+          "icon": "media/dsworkbench.svg",
+          "contextualTitle": "DSWorkbench"
+        }
+      ],
+      "dsworkbenchBravais": [
+        {
+          "id": "dsworkbench.bravais",
+          "name": "Bravais",
+          "type": "webview",
+          "icon": "media/dsworkbench.svg",
+          "contextualTitle": "DSWorkbench"
+        },
+        {
+          "id": "dsworkbench.sosial",
+          "name": "Sosial",
           "type": "webview",
           "icon": "media/dsworkbench.svg",
           "contextualTitle": "DSWorkbench"
@@ -432,9 +521,18 @@
         {
           "command": "dsworkbench.env.refresh",
           "when": "false"
+        },
+        {
+          "command": "dsworkbench.openMaterial",
+          "when": "dsworkbench.masuk"
         }
       ],
       "view/title": [
+        {
+          "command": "dsworkbench.home",
+          "when": "view == dsworkbench.kelas",
+          "group": "navigation@0"
+        },
         {
           "command": "dsworkbench.refreshKelas",
           "when": "view == dsworkbench.kelas && dsworkbench.masuk",
@@ -508,9 +606,19 @@
           "group": "1_buka@2"
         },
         {
+          "command": "dsworkbench.openMaterial",
+          "when": "view == dsworkbench.kelas && viewItem == lessonModul",
+          "group": "inline@1"
+        },
+        {
           "command": "dsworkbench.prepareModule",
           "when": "view == dsworkbench.kelas && viewItem =~ /^(lessonModul|modulBerkas)$/",
           "group": "inline@0"
+        },
+        {
+          "command": "dsworkbench.openMaterial",
+          "when": "view == dsworkbench.kelas && viewItem == lessonModul",
+          "group": "0_baca@0"
         },
         {
           "command": "dsworkbench.prepareModule",

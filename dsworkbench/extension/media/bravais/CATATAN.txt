@@ -1,0 +1,4 @@
+bravais.png dan bravais.json disalin dari apps/web/public/companion/.
+Aset karakter milik produk Data Science Workbench; sumber dan lisensi berkas aslinya
+belum tercatat di repo (apps/web/ATTRIBUTION.md tidak menyebutnya). Pastikan sebelum
+rilis publik.
