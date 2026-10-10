@@ -1,17 +1,17 @@
 {
   "schema": 1,
-  "dibuat": "2026-10-10T02:41:29Z",
-  "commit": "090fd5d6ee1e",
+  "dibuat": "2026-10-10T05:52:50Z",
+  "commit": "e4c7483d0f4d",
   "adaPerubahanLokal": false,
   "ekstensi": {
     "id": "sditera.dsworkbench",
-    "versi": "0.1.0",
-    "sha256": "1b92b40fa665a1d925bb1f6e9b100729dbab3a42c47703d2f0f8ab2b7671eedf"
+    "versi": "0.1.1",
+    "sha256": "b3e25fbf8d88897c0c2ac2caa1f1a142b2f4675102acdc69179a41d50db5368e"
   },
   "berkas": [
     {
       "jalur": "README.md",
-      "sha256": "a9ea88f3e153bc861ba69cb315fee9ced1ac9306316b29150ef51b182db0d082"
+      "sha256": "c7b7b55f3010ee50eb7b665d76e00c4ddc4a5f79033091510bc937a3e57dd9c8"
     },
     {
       "jalur": "fixtures/agen_sungguhan.py",
@@ -26,8 +26,16 @@
       "sha256": "60970cda3c0e0f47900464c69664a68b325bc6d1e22cd94205989c007408aa89"
     },
     {
+      "jalur": "lab.mjs",
+      "sha256": "b95e668d398480f3d67a886e87fa0b288dd10e45d89f988f6472985a6212417e"
+    },
+    {
       "jalur": "lib/zip.mjs",
       "sha256": "ddf0a375f5b0345f1bb0f83cc552e88311674ff75e75cfd27be48e9131671665"
+    },
+    {
+      "jalur": "suite-lab.cjs",
+      "sha256": "17488c21b1f2e4381505b498915722aa4a11ed0d1a747e682b764d736b909f93"
     },
     {
       "jalur": "suite.cjs",
@@ -35,11 +43,11 @@
     },
     {
       "jalur": "uji-asap.mjs",
-      "sha256": "602c57c491aef5ed8037822d5551e26a4005d6c671230238075a875b15b1349c"
+      "sha256": "e312ac37907e474e170ac6ad937039ca5150b94a00bbf09147cc54ff61b1d742"
     },
     {
       "jalur": "uji-lingkungan.cjs",
-      "sha256": "ae662da67a69155ad83338f364f0b6720d98a1bbee303bb83b4f0db0a71d51b8"
+      "sha256": "9e9f29b118222b4fe316e27939f592ca4e2e025197b89d6f0066e1e369f7ee4f"
     }
   ]
 }

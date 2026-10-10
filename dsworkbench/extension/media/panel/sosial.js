@@ -275,6 +275,42 @@
 		}
 		if (!statusKotor && document.activeElement !== teksStatus) teksStatus.value = teksStatusServer;
 		perbaruiTombolStatus();
+		gambarPemilih(k);
+	}
+
+	// -- pemilih avatar: katalog tetap; panel hanya mengirim id pilihan ------------------
+	function gambarPemilih(k) {
+		const wadah = el('pemilih');
+		const p = k.pemilih;
+		el('ganti-avatar').setAttribute('aria-expanded', p ? 'true' : 'false');
+		el('ganti-avatar').textContent = p ? 'Tutup' : 'Ganti avatar';
+		if (!p) {
+			if (!wadah.hidden) {
+				wadah.hidden = true;
+				wadah.removeAttribute('data-tanda');
+				wadah.replaceChildren();
+			}
+			return;
+		}
+		const tanda = JSON.stringify(p);
+		if (wadah.getAttribute('data-tanda') === tanda) return;
+		const fokus = document.activeElement instanceof Element && wadah.contains(document.activeElement) ? document.activeElement.getAttribute('data-id') : null;
+		wadah.setAttribute('data-tanda', tanda);
+		wadah.hidden = false;
+		wadah.replaceChildren(
+			...p.butir.map((b) => {
+				const t = buat('button', `pemilih__butir${b.id === p.terpilih ? ' terpilih' : ''}`);
+				t.type = 'button';
+				t.setAttribute('data-tindakan', 'pilih-avatar');
+				t.setAttribute('data-id', b.id);
+				t.setAttribute('aria-pressed', b.id === p.terpilih ? 'true' : 'false');
+				t.setAttribute('aria-label', `Avatar ${b.id}`);
+				t.title = b.id;
+				t.appendChild(avatar(b.avatar, {}));
+				return t;
+			}),
+		);
+		if (fokus) wadah.querySelector(`[data-id="${fokus}"]`)?.focus();
 	}
 
 	pilihStatus.addEventListener('change', () => dsw.kirim({ tindakan: 'status', nilai: pilihStatus.value }));

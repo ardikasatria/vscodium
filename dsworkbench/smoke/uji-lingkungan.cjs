@@ -33,10 +33,11 @@ var os = __toESM(require("node:os"));
 var path = __toESM(require("node:path"));
 var NAMA_PRODUK = "DSWorkbench";
 var PENANDA_PINDAH = "WORKBENCH_AGENT_INTERPRETER_TETAP";
+var dataRootPaksa;
 function lingkunganNyata() {
   return {
     platform: process.platform,
-    env: process.env,
+    env: dataRootPaksa ? { ...process.env, DSW_DATA_ROOT: dataRootPaksa } : process.env,
     rumah: os.homedir(),
     ada: (j) => {
       try {

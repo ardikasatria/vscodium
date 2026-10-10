@@ -12,6 +12,7 @@ lokal.
 | `uji-asap.mjs` | peluncur: menemukan biner dan ekstensi tertanam, menjalankan `inti.mjs`, menulis ringkasan |
 | `inti.mjs` | uji integrasi (salinan `scripts/run-integration.mjs`): server HTTP palsu, profil sementara, pemeriksaan |
 | `suite.cjs` | suite yang berjalan DI DALAM aplikasi (`--extensionTestsPath`) |
+| `lab.mjs`, `suite-lab.cjs` | uji mode lab (komputer bersama): dijalankan `uji-asap.mjs` setelah inti; `--lab tidak` melewatinya. Konfigurasi lab lewat `DSW_LAB_CONFIG` di profil sementara |
 | `fixtures/agen_sungguhan.py` | Local Runner sungguhan (`agent-payload/` ekstensi yang diuji) dengan pengendali relay tiruan |
 | `lib/zip.mjs`, `ide-local-ops.json` | pembantu `inti.mjs` |
 | `uji-lingkungan.cjs` | uji pemasang lingkungan sungguhan (modul `src/lingkungan/*` terkompilasi) |

@@ -9,6 +9,7 @@
     workbench-agent ensure-env [--profile PROFIL] [--reset]
     workbench-agent profiles
     workbench-agent unpair
+    workbench-agent self-revoke [--github] [--device-id ID]
 """
 
 from __future__ import annotations
@@ -101,6 +102,21 @@ def main(argv: Sequence[str] | None = None) -> int:
                        help="hapus lingkungan profil itu lalu pasang ulang")
     sub.add_parser("profiles", help="tampilkan profil lingkungan dan keadaannya")
     sub.add_parser("unpair", help="hapus kredensial lokal (tidak mencabut di VM)")
+    p_cabut = sub.add_parser(
+        "self-revoke",
+        help="cabut perangkat ini di server dengan kredensialnya sendiri, lalu hapus "
+             "kredensial lokal (mode lab: menyapu sisa sesi sebelumnya)",
+    )
+    p_cabut.add_argument(
+        "--github", action="store_true",
+        help="cabut juga tautan GitHub akun itu dan hapus semua token GitHub di "
+             "direktori keadaan",
+    )
+    p_cabut.add_argument(
+        "--device-id", default=None,
+        help="hanya bertindak bila kredensial lokal memang milik perangkat ini "
+             "(sesi yang sedang ditutup); perangkat lain tidak disentuh",
+    )
 
     args = parser.parse_args(list(argv) if argv is not None else None)
     config = AgentConfig(
@@ -133,6 +149,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _cmd_profiles()
         if args.perintah == "unpair":
             return _cmd_unpair(config)
+        if args.perintah == "self-revoke":
+            return _cmd_self_revoke(config, github=args.github, hanya=args.device_id)
     except AuthenticationFailedError as exc:
         print(f"gagal: {exc}", file=sys.stderr)
         return 2
@@ -601,6 +619,120 @@ def _cmd_unpair(config: AgentConfig) -> int:
     print("kredensial lokal dihapus")
     print("catatan: pencabutan di VM dilakukan dari halaman Workbench")
     return 0
+
+
+#: Batas waktu HTTP ``self-revoke`` (detik). Dijalankan saat aplikasi mulai dan
+#: saat keluar: tidak boleh menahan keduanya lama bila server tidak terjangkau.
+_BATAS_CABUT_DIRI = 8.0
+
+
+def _hapus_github(state_dir: Path, state: DeviceState | None, *, buat_auth=None) -> dict:
+    """Cabut tautan GitHub akun pairing, lalu hapus SEMUA ``github.json`` di ``state_dir``.
+
+    Akun pairing: token dicabut di GitHub bila terbaca (mekanisme ``revoke``
+    yang sama dengan operasi relay ``github.auth_revoke``), lalu berkasnya
+    dihapus. Berkas akun lain (sisa sesi yang lebih lama) hanya dapat dihapus:
+    di Windows rahasianya terbungkus DPAPI dengan id perangkat yang sudah tidak
+    diketahui. Token tidak pernah dicetak.
+    """
+    from .akun import direktori_akun
+    from .githubauth import FILE_NAME, GitHubAuth
+
+    kandidat = [state_dir / FILE_NAME]
+    try:
+        kandidat += sorted((state_dir / "akun").glob(f"*/{FILE_NAME}"))
+    except OSError:
+        pass
+    # Dihitung sebelum ``revoke``: ia sendiri menghapus berkas akun pairing.
+    ada = [berkas for berkas in kandidat if berkas.is_file()]
+    jauh = False
+    if state is not None:
+        # ``klaim=False``: menyapu tidak boleh menjadikan akun ini pemilik direktori.
+        dir_akun = direktori_akun(state_dir, state.account, state_dir / "akun", klaim=False)
+        if (dir_akun / FILE_NAME).is_file():
+            try:
+                auth = (buat_auth or GitHubAuth)(dir_akun, state.device_id)
+                jauh = bool(auth.revoke().get("revokedRemote"))
+            except Exception:  # noqa: BLE001 - penghapusan lokal di bawah tetap berjalan
+                jauh = False
+    for berkas in ada:
+        try:
+            berkas.unlink()
+        except OSError:  # termasuk sudah dihapus ``revoke``
+            pass
+    dihapus = sum(1 for berkas in ada if not berkas.exists())
+    return {"revokedRemote": jauh, "removedFiles": dihapus}
+
+
+def _cmd_self_revoke(config: AgentConfig, *, github: bool = False, hanya: str | None = None,
+                     buat_klien=None, buat_auth=None) -> int:
+    """Sapu sisa sesi di komputer bersama (mode lab; ``docs/ide-mode-lab.md``).
+
+    1. tidak boleh ada agent yang sedang berjalan untuk direktori keadaan ini
+       (kode keluar 3): sesi itu masih hidup di jendela lain;
+    2. ``--github``: tautan GitHub dicabut dan berkas tokennya dihapus;
+    3. server diminta mencabut perangkat ini dengan kredensialnya sendiri
+       (``POST /api/agent/self-revoke``) -- token aplikasi yang terikat padanya
+       ikut mati;
+    4. ``device.json`` dihapus, **apa pun** jawaban server. Server tak
+       terjangkau: token lab mati sendiri dan perangkatnya disapu server.
+
+    Satu baris JSON di stdout melaporkan hasilnya; kredensial tidak pernah dicetak.
+    ``server``: ``revoked`` | ``already`` (sudah dicabut/tidak dikenal) |
+    ``unsupported`` (server belum punya rute ini) | ``unreachable`` | ``none``
+    (tidak ada kredensial lokal).
+
+    ``hanya`` (``--device-id``): pembersihan sesi tertentu yang berjalan
+    terlambat (penjaga sesi aplikasi yang sudah ditutup) tidak boleh mencabut
+    perangkat sesi BERIKUTNYA. Bila kredensial lokal milik perangkat lain,
+    tidak ada yang disentuh (``local: "other"``).
+    """
+    state_dir = config.resolved_state_dir()
+    store = StateStore(state_dir)
+    kunci = RunLock(state_dir / NAMA_BERKAS)
+    if not kunci.acquire():
+        print("Agent untuk perangkat ini sedang berjalan; tidak ada yang dicabut.",
+              file=sys.stderr)
+        return EXIT_SUDAH_BERJALAN
+    try:
+        state: DeviceState | None = None
+        ada = store.exists()
+        if ada:
+            try:
+                state = store.load()
+            except (ValueError, OSError):
+                state = None  # berkas rusak: tidak ada yang dapat dicabut di server
+        hasil: dict = {
+            "deviceId": state.device_id if state else None,
+            "account": state.account if state else None,
+            "server": "none",
+            "local": "none",
+        }
+        if hanya is not None and ada and (state is None or state.device_id != hanya):
+            hasil["local"] = "other"
+            print(json.dumps(hasil, ensure_ascii=False))
+            return 0
+        if github:
+            hasil["github"] = _hapus_github(state_dir, state, buat_auth=buat_auth)
+        if state is not None:
+            klien = (buat_klien or ControlPlaneClient)(
+                state.control_plane_url, timeout=_BATAS_CABUT_DIRI)
+            try:
+                klien.self_revoke(device_id=state.device_id, credential=state.credential)
+                hasil["server"] = "revoked"
+            except AuthenticationFailedError:
+                hasil["server"] = "already"
+            except HttpError as exc:
+                hasil["server"] = "unsupported" if exc.status in (404, 405) else "unreachable"
+            except (TransportError, OSError):
+                hasil["server"] = "unreachable"
+        if ada:
+            store.clear()
+            hasil["local"] = "cleared"
+        print(json.dumps(hasil, ensure_ascii=False))
+        return 0
+    finally:
+        kunci.release()
 
 
 if __name__ == "__main__":

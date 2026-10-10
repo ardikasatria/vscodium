@@ -184,6 +184,18 @@ class ControlPlaneClient:
             expect_body=False,
         )
 
+    def self_revoke(self, *, device_id: str, credential: str) -> None:
+        """Minta server mencabut perangkat ini (dan token aplikasi yang terikat padanya).
+
+        Dibuktikan dengan kredensial perangkat sendiri, tanpa token pengguna:
+        dipakai mode lab untuk menyapu sisa sesi sebelumnya (``cli self-revoke``).
+        """
+        self._request(
+            "POST", "api/agent/self-revoke",
+            body={"deviceId": device_id, "credential": credential},
+            expect_body=False,
+        )
+
     def poll(
         self, *, device_id: str, credential: str, busy: bool = False, wait: float = 0.0
     ) -> dict[str, Any]:

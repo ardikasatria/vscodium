@@ -3,7 +3,7 @@
 //   node uji-asap.mjs --app <aplikasi> [--ext <folder ekstensi>] [--python <python>]
 //                     [--keluar <folder hasil>] [--tmp <folder sementara>]
 //                     [--simpanan-rahasia os|memori] [--arg <argumen aplikasi>]...
-//                     [--sumber <resources/app>] [--cetak-ekstensi ya]
+//                     [--sumber <resources/app>] [--cetak-ekstensi ya] [--lab ya|tidak]
 //
 //   --app   biner aplikasi, bundel `.app` (macOS), atau folder pasang yang berisi
 //           `resources/app` (Windows/Linux, termasuk hasil ekstraksi AppImage)
@@ -17,6 +17,8 @@
 //             (bawaan: python3, atau python di Windows)
 //   --simpanan-rahasia memori  → `--use-inmemory-secretstorage` (runner tanpa
 //             keyring); bawaan `os`
+//   --lab tidak  lewati uji MODE LAB (`lab.mjs`: komputer bersama, sesi tidak disimpan,
+//             penjaga sesi, sapu sisa, keluar menganggur, penutupan paksa); bawaan `ya`
 //
 // Menulis `<keluar>/ringkasan-uji-asap.json` + `uji-asap.log`; keluar 0 hanya
 // bila semua pemeriksaan lulus. Berkas ini berjalan di luar repo: hanya butuh
@@ -36,7 +38,7 @@ function gagal(pesan, kode = 2) {
 }
 
 const o = { arg: [] };
-const OPSI = ['app', 'ext', 'python', 'keluar', 'tmp', 'simpanan-rahasia', 'arg', 'sumber', 'cetak-ekstensi'];
+const OPSI = ['app', 'ext', 'python', 'keluar', 'tmp', 'simpanan-rahasia', 'arg', 'sumber', 'cetak-ekstensi', 'lab'];
 {
 	const a = process.argv.slice(2);
 	for (let i = 0; i < a.length; i++) {
@@ -176,11 +178,48 @@ const kode = await new Promise((selesai) => {
 		selesai(k ?? 1);
 	});
 });
+
+// Mode lab: pelari kedua terhadap aplikasi yang sama (konfigurasi lab lewat DSW_LAB_CONFIG di
+// profil sementara; tidak menulis ke %PROGRAMDATA% maupun /etc). Hasilnya bagian dari ringkasan.
+const jalankanLab = (o.lab ?? 'ya') !== 'tidak' && fs.existsSync(path.join(sini, 'lab.mjs')) && fs.existsSync(path.join(ext, 'dist', 'penjaga.js'));
+const berkasLab = path.join(keluar, 'ringkasan-lab.json');
+fs.rmSync(berkasLab, { force: true });
+let kodeLab = 0;
+if (jalankanLab) {
+	log.write('\n=== mode lab ===\n');
+	console.log('\n=== mode lab ===');
+	kodeLab = await new Promise((selesai) => {
+		const anak = spawn(process.execPath, [path.join(sini, 'lab.mjs')], {
+			env: { ...env, DSW_SUITE_LAB: path.join(sini, 'suite-lab.cjs'), DSW_RINGKASAN_LAB: berkasLab, DSW_SIMPAN_HASIL_LAB: path.join(keluar, 'hasil-lab.json'), DSW_LAB_RINCI: '1' },
+			stdio: ['ignore', 'pipe', 'pipe'],
+		});
+		for (const aliran of [anak.stdout, anak.stderr]) {
+			aliran.on('data', (d) => {
+				process.stdout.write(d);
+				log.write(d);
+			});
+		}
+		const pewaktu = setTimeout(() => anak.kill(), 600_000);
+		anak.on('error', (e) => {
+			clearTimeout(pewaktu);
+			log.write(`\n${e.stack}\n`);
+			selesai(2);
+		});
+		anak.on('close', (k) => {
+			clearTimeout(pewaktu);
+			selesai(k ?? 1);
+		});
+	});
+}
 await new Promise((r) => log.end(r));
+const lab = !jalankanLab
+	? { dijalankan: false, alasan: (o.lab ?? 'ya') === 'tidak' ? 'dilewati (--lab tidak)' : 'ekstensi yang diuji belum punya mode lab (dist/penjaga.js tidak ada)' }
+	: { dijalankan: true, kodeKeluar: kodeLab, ...(fs.existsSync(berkasLab) ? bacaJson(berkasLab) : { lulus: false, galat: 'lab.mjs tidak menulis ringkasan' }) };
+fs.rmSync(berkasLab, { force: true });
 
 const inti = fs.existsSync(berkasInti) ? bacaJson(berkasInti) : { lulus: false, galat: 'inti tidak menulis ringkasan (aplikasi tidak menyala?)' };
 const ringkasan = {
-	lulus: kode === 0 && inti.lulus === true,
+	lulus: kode === 0 && inti.lulus === true && (!lab.dijalankan || (kodeLab === 0 && lab.lulus === true)),
 	kodeKeluar: kode,
 	detik: Math.round((Date.now() - mulai) / 100) / 10,
 	os: { platform: process.platform, arch: process.arch, rilis: os.release(), versi: os.version?.() },
@@ -196,14 +235,16 @@ const ringkasan = {
 	peringatan: inti.peringatan ?? [],
 	// Nilai bawaan `workbench.colorTheme` yang dilihat ekstensi ("DSWorkbench Gelap" bila tema bawaan produk bekerja).
 	temaBawaan: inti.temaBawaanProduk,
-	galat: inti.galat ?? inti.galatSuite,
+	galat: inti.galat ?? inti.galatSuite ?? (lab.dijalankan && !lab.lulus ? `mode lab: ${lab.galat ?? 'gagal'}` : undefined),
 	galatSuite: inti.galatSuite,
+	// Mode lab (komputer bersama): jumlah dan daftar pemeriksaannya terpisah dari inti.
+	lab,
 };
 fs.writeFileSync(berkasRingkasan, JSON.stringify(ringkasan, null, 1));
 fs.rmSync(berkasInti, { force: true });
 for (const w of ringkasan.peringatan) console.log(`PERINGATAN: ${w}`);
-console.log(`\n${ringkasan.lulus ? 'LULUS' : 'GAGAL'}: ${ringkasan.jumlahLulus} pemeriksaan lulus — ${berkasRingkasan}`);
+console.log(`\n${ringkasan.lulus ? 'LULUS' : 'GAGAL'}: ${ringkasan.jumlahLulus} pemeriksaan lulus${lab.dijalankan ? ` + ${lab.jumlahLulus ?? 0} pemeriksaan mode lab` : ' (mode lab tidak dijalankan)'} — ${berkasRingkasan}`);
 if (!ringkasan.lulus && !ekstensi.cocokDenganBundel) {
 	console.log('Catatan: ekstensi yang diuji bukan build yang dipakai membangun suite ini; kegagalan bisa berasal dari fitur yang belum ada di build itu.');
 }
-process.exit(ringkasan.lulus ? 0 : kode || 1);
+process.exit(ringkasan.lulus ? 0 : kode || kodeLab || 1);
