@@ -379,7 +379,12 @@ async function run() {
           await v.pesan({ tindakan: "susun", lembar: 0, token: 0, isi: { judul: "Diubah", rak: {}, tanda: 0, urut: 0, batas: 0, lebar: 1 } });
           const bukaLagi = await v.bukaBerkas(tujuan, P);
           const setelahBuka = v.keadaan();
-          hasil["viz"] = { bukanSatu, dariTabel, tab: tabViz, siapPanel: awalViz.siapPanel, pesanPanel: awalViz.pesanPanel, html: awalViz.html, sumber: awalViz.isi?.sumber, kolom: awalViz.isi?.kolom, ditolak: ditolakViz, hitung, dataTerkirim, dasborViz, saringBuka, bravaisViz, judulDibuka: setelahBuka.isi?.judul, simpan, berkasViz, bukaLagi, lembarDibuka: setelahBuka.isi?.lembar, tataDibuka: setelahBuka.isi?.lembar.map((l) => l.tata), berkasDibuka: setelahBuka.isi?.berkas, kotor: setelahBuka.isi?.kotor };
+          const csv = path.join(mkPgd.akar, "viz", "data.csv");
+          fs.writeFileSync(csv, "kategori,unit\nmakanan,3\n");
+          v.dialog({ simpan: async () => tujuan, pasangMesin: async () => false });
+          const dataTanpaMesin = await v.bukaData([csv]);
+          const sesudahData = v.keadaan().isi?.sumber.jenis;
+          hasil["viz"] = { dataTanpaMesin, sesudahData, bukanSatu, dariTabel, tab: tabViz, siapPanel: awalViz.siapPanel, pesanPanel: awalViz.pesanPanel, html: awalViz.html, sumber: awalViz.isi?.sumber, kolom: awalViz.isi?.kolom, ditolak: ditolakViz, hitung, dataTerkirim, dasborViz, saringBuka, bravaisViz, judulDibuka: setelahBuka.isi?.judul, simpan, berkasViz, bukaLagi, lembarDibuka: setelahBuka.isi?.lembar, tataDibuka: setelahBuka.isi?.lembar.map((l) => l.tata), berkasDibuka: setelahBuka.isi?.berkas, kotor: setelahBuka.isi?.kotor };
         }
         const k1 = s.keadaan();
         hasil["studio"] = {

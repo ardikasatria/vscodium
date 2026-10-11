@@ -3,7 +3,7 @@
   "displayName": "DSWorkbench",
   "icon": "media/ikon.png",
   "description": "Kelas, naskah modul, notebook, tugas, checkpoint, SQL, Studio Data, DSWorkbench Viz, terminal praktikum, asisten belajar Bravais, alat bantu menulis LaTeX, dan Berkas saya untuk Sains Data ITERA, dijalankan di komputer Anda lewat Local Runner.",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "publisher": "sditera",
   "private": true,
   "license": "UNLICENSED",
@@ -332,6 +332,12 @@
         "title": "Studio Data",
         "category": "DSWorkbench",
         "icon": "$(server-environment)"
+      },
+      {
+        "command": "dsworkbench.viz.new",
+        "title": "DSWorkbench Viz: Dasbor baru dari berkas data…",
+        "category": "DSWorkbench",
+        "icon": "$(graph)"
       },
       {
         "command": "dsworkbench.viz.openFile",
@@ -757,6 +763,10 @@
           "when": "dsworkbench.masuk"
         },
         {
+          "command": "dsworkbench.viz.new",
+          "when": "dsworkbench.masuk"
+        },
+        {
           "command": "dsworkbench.viz.openFile",
           "when": "dsworkbench.masuk"
         },
@@ -1126,6 +1136,11 @@
         {
           "command": "dsworkbench.viz.openFile",
           "when": "dsworkbench.masuk && resourceFilename =~ /\\.dswviz\\.json$/",
+          "group": "navigation@9"
+        },
+        {
+          "command": "dsworkbench.viz.new",
+          "when": "dsworkbench.masuk && resourceExtname =~ /^\\.(csv|tsv|parquet|pq)$/i",
           "group": "navigation@9"
         }
       ]

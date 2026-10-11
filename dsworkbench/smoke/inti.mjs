@@ -1452,7 +1452,10 @@ try {
 			if (h.viz) {
 				const v = h.viz;
 				periksa('DSWorkbench Viz 0.3.0: dibuka dari Studio Data untuk satu tabel sebagai tab tersendiri, skrip Vega-Lite berjalan di bawah CSP panel yang ketat, kueri ringkas disusun ekstensi dan dijalankan lewat Local Runner, dasbor disimpan dan dibuka kembali dari folder kerja', () => {
-					assert.ok(h.perintah.includes('dsworkbench.viz.openFile'));
+					assert.ok(h.perintah.includes('dsworkbench.viz.openFile') && h.perintah.includes('dsworkbench.viz.new'));
+					// Viz mandiri: tanpa persetujuan memasang mesin DuckDB, tidak ada yang dipasang dan dasbor yang terbuka tidak diganti.
+					assert.equal(v.dataTanpaMesin, 'tanpa_mesin');
+					assert.equal(v.sesudahData, 'tabel');
 					assert.equal(v.bukanSatu, 'bukan_satu');
 					assert.equal(v.dariTabel, 'viz');
 					assert.deepEqual(v.tab, ['DSWorkbench Viz']);
