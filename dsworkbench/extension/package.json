@@ -3,7 +3,7 @@
   "displayName": "DSWorkbench",
   "icon": "media/ikon.png",
   "description": "Kelas, naskah modul, notebook, tugas, checkpoint, SQL, Studio Data, DSWorkbench Viz, terminal praktikum, asisten belajar Bravais, alat bantu menulis LaTeX, dan Berkas saya untuk Sains Data ITERA, dijalankan di komputer Anda lewat Local Runner.",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "publisher": "sditera",
   "private": true,
   "license": "UNLICENSED",

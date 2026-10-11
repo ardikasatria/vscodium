@@ -7,6 +7,7 @@ objek JSON per baris di stdin, satu jawaban JSON per baris di stdout.
     {"id": 1, "op": "intip", "berkas": [...]}                      (kolom tiap berkas, tanpa memuat)
     {"id": 1, "op": "buka", "tabel": [{"nama": "penjualan", "berkas": [...]}, {"nama": "produk", "berkas": [...]}],
      "gabung": [{"kiri": "penjualan", "kolomKiri": "produk_id", "kanan": "produk", "kolomKanan": "produk_id", "jenis": "left"}]}
+    (kunci gabungan: tambah "tambahan": [{"kiri": "kolom_kiri", "kanan": "kolom_kanan"}, ...] pada hubungan itu)
     {"id": 2, "op": "kueri", "sql": "SELECT ... FROM sumber ...", "maks": 1000}
 
 Berkas pilihan pengguna dibuka sebagai tabel/view bernama ``sumber``. Sesudah itu akses DuckDB
@@ -71,6 +72,7 @@ def _tutup():
 
 NAMA_TABEL = re.compile(r"^[a-z_][a-z0-9_]{0,40}$")
 TABEL_MAKS = 12
+KUNCI_MAKS = 6
 JENIS_GABUNG = {"left": "LEFT JOIN", "inner": "INNER JOIN"}
 
 
@@ -199,11 +201,21 @@ def _sql_gabung(daftar, kolom_tabel, gabung):
         jenis = JENIS_GABUNG.get(g.get("jenis", "left"))
         if kiri not in ada or kanan not in kolom_tabel or kanan in ada or jenis is None:
             raise ValueError("Hubungan tabel tidak sah: tabel kiri harus sudah terhubung dan tabel kanan belum.")
-        if kk not in {c["nama"] for c in kolom_tabel[kiri]} or kn not in {c["nama"] for c in kolom_tabel[kanan]}:
+        # Kunci gabungan: pasangan pertama + "tambahan"; semua pasangan harus cocok (AND).
+        tambahan = g.get("tambahan") or []
+        if not isinstance(tambahan, list) or len(tambahan) > KUNCI_MAKS - 1 or not all(isinstance(t, dict) for t in tambahan):
+            raise ValueError("Kolom penghubung tambahan tidak sah.")
+        pasangan = [(kk, kn)] + [(t.get("kiri"), t.get("kanan")) for t in tambahan]
+        nama_kiri = {c["nama"] for c in kolom_tabel[kiri]}
+        nama_kanan = {c["nama"] for c in kolom_tabel[kanan]}
+        if any(a not in nama_kiri or b not in nama_kanan for a, b in pasangan) or len(set(pasangan)) != len(pasangan):
             raise ValueError("Kolom penghubung tidak ada di tabelnya.")
-        klausa.append("%s %s ON %s.%s = %s.%s" % (jenis, _qi(kanan), _qi(kiri), _qi(kk), _qi(kanan), _qi(kn)))
+        syarat = " AND ".join("%s.%s = %s.%s" % (_qi(kiri), _qi(a), _qi(kanan), _qi(b)) for a, b in pasangan)
+        klausa.append("%s %s ON %s" % (jenis, _qi(kanan), syarat))
+        # Kolom kunci kanan yang namanya sama dengan kunci kirinya tidak diulang di hasil.
+        kembar = {b for a, b in pasangan if a.lower() == b.lower()}
         for k in kolom_tabel[kanan]:
-            if k["nama"] == kn and kn.lower() == kk.lower():
+            if k["nama"] in kembar:
                 continue
             alias = k["nama"] if k["nama"].lower() not in pakai else "%s_%s" % (k["nama"], kanan)
             while alias.lower() in pakai:
