@@ -892,9 +892,10 @@ async function unduhTerverifikasi(o) {
     fs6.renameSync(sementara, o.tujuan);
     return o.tujuan;
   } catch (e) {
-    berkas?.destroy();
-    if (berkas) await new Promise((r) => berkas.closed ? r() : berkas.once("close", () => r()));
     const simpan = o.lanjut && !(e instanceof GalatUnduh && (e.kode === "sha256" || e.kode === "ukuran" || e.kode === "url" || e.kode === "alih"));
+    if (berkas && simpan && !berkas.destroyed && !berkas.writableEnded && !berkas.errored) berkas.end();
+    else berkas?.destroy();
+    if (berkas) await new Promise((r) => berkas.closed ? r() : berkas.once("close", () => r()));
     if (!simpan) fs6.rmSync(sementara, { force: true });
     fs6.rmSync(o.tujuan, { force: true });
     if (o.sinyal?.aborted || e?.name === "AbortError") throw batal();

@@ -1417,7 +1417,8 @@ try {
 			periksa('panel Studio Data: pesan panel yang tidak sah ditolak; skrip CREATE dari katalog masuk ke jendela kueri; rencana hanya untuk satu pernyataan; kueri dijalankan lewat Local Runner dan galatnya tampil di tab Pesan', () => {
 				assert.deepEqual(s.ditolak, ['ditolak', 'ditolak', 'ditolak', 'ditolak', 'ditolak', 'ditolak']);
 				assert.equal(s.skrip, 'skrip');
-				assert.ok(s.editor.length === 1 && /^-- Skrip dari katalog/.test(s.editor[0]) && s.editor[0].includes('CREATE TABLE dw.'), s.editor[0]);
+				// Tanpa PostgreSQL bahan skrip lengkap tidak terbaca: skrip jatuh ke versi katalog, tidak dikarang.
+				assert.ok(/^-- Skrip dari katalog/.test(s.editor[0]) && s.editor[0].includes('CREATE TABLE dw.'), s.editor[0]);
 				assert.equal(s.duaPernyataan, 'bukan_satu');
 				// Mesin uji tanpa PostgreSQL: kueri sampai ke Local Runner dan berakhir bukan-berhasil, dengan pesannya.
 				assert.ok(typeof s.jalankan === 'string' && s.jalankan !== 'ditolak' && s.jalankan !== 'succeeded', s.jalankan);
@@ -1427,6 +1428,25 @@ try {
 				assert.ok(/id="st-tab-pesan"[^>]*aria-selected="true"/.test(s.setelah.bagian['s-hasil']) && s.setelah.bagian['s-hasil'].includes('class="st-pesan galat"'));
 				assert.ok(s.setelah.bagian['s-status'].includes('st-status--galat'));
 			});
+			if (s.pintasan) {
+				periksa('panel Studio Data 0.2.0: perintah pintasan (F5/Ctrl+Enter) membuat panel mengirim isi jendela kueri; Lineage dbt dan Kualitas Data dibaca dari berkas folder kerja; Pivot menyusun kueri CUBE/ROLLUP; Alur ETL menjelaskan bila audit tidak terbaca', () => {
+					assert.ok(s.pintasan.pesanBaru >= 1, 'panel mengirim pesan setelah perintah pintasan');
+					assert.deepEqual([s.pintasan.judul, s.pintasan.berjalan], ['Kueri', false]);
+					assert.ok(s.pintasan.urut >= 1);
+					assert.equal(s.lineage.hasil, 'lineage');
+					assert.ok(s.lineage.bagian.includes('class="ln"') && s.lineage.bagian.includes('staging.toko') && s.lineage.bagian.includes('stg_toko&lt;b&gt;') && !s.lineage.bagian.includes('stg_toko<b>'));
+					assert.ok(/id="st-tab-visual"[^>]*aria-selected="true"[^>]*>Lineage dbt</.test(s.lineage.bagian));
+					assert.equal(s.kualitas.hasil, 'kualitas');
+					assert.ok(s.kualitas.bagian.includes('1 uji gagal') && s.kualitas.bagian.includes('unique_stg_toko') && s.kualitas.bagian.includes('GAGAL'));
+					assert.equal(s.pivotBuka.hasil, 'pivot_dibuka');
+					assert.ok(s.pivotBuka.bagian.includes('id="pv-baris"') && s.pivotBuka.bagian.includes('data-tindakan="pivot"'));
+					assert.equal(s.pivotSama, 'ditolak', 'baris dan kolom yang sama ditolak');
+					assert.ok(typeof s.pivot.hasil === 'string' && s.pivot.hasil !== 'ditolak' && s.pivot.hasil !== 'succeeded');
+					assert.ok(/GROUP BY ROLLUP \(/.test(s.pivot.editor) && s.pivot.editor.includes('COUNT(*) AS nilai'), s.pivot.editor);
+					assert.ok(s.pivot.bagian.includes('Pivot tidak dapat dihitung'));
+					assert.ok(s.etl.bagian.includes('Audit pemuatan tidak terbaca') && /id="st-tab-visual"[^>]*aria-selected="true"[^>]*>Alur ETL</.test(s.etl.bagian));
+				});
+			}
 		} else {
 			dilewati.push('panel Studio Data: ekstensi yang diuji belum punya kait uji panel (versi lama)');
 		}

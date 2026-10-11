@@ -6,7 +6,7 @@
 	'use strict';
 	const dsw = window.dsw;
 	const BAGIAN = new Set(['s-alat', 's-jelajah', 's-hasil', 's-status']);
-	const TAB = new Set(['hasil', 'pesan', 'rencana']);
+	const TAB = new Set(['hasil', 'pesan', 'rencana', 'visual']);
 	const BER_SQL = new Set(['jalankan', 'rencana', 'rencana-aktual']);
 	const SQL_MAKS = 100000;
 	const galat = [];
@@ -14,6 +14,94 @@
 	const tampil = { urut: '', tab: '' };
 
 	const editor = () => document.getElementById('st-sql');
+
+	// -- pewarnaan sintaks jendela kueri ------------------------------------------------------------
+	// Lapisan <pre id="st-sorot"> di bawah kotak teks berisi salinan kueri yang sudah diwarnai; kotak
+	// teksnya berhuruf tembus pandang. Token dipasang sebagai simpul teks (bukan HTML).
+	const SOROT_MAKS = 60000;
+	const KUNCI = new Set(
+		('select from where group by order having limit offset fetch join inner left right full outer cross natural on using as and or not in is null like ilike similar between exists any some all ' +
+			'case when then else end distinct union intersect except insert into values update set delete merge matched create table view materialized index unique primary key foreign references ' +
+			'constraint check default alter drop add column schema database with recursive returning cube rollup grouping sets over partition range list hash for of to begin commit rollback start transaction ' +
+			'savepoint explain analyze verbose buffers truncate grant revoke comment extension if replace temporary temp true false asc desc nulls first last lateral filter within window rows preceding ' +
+			'following current row unbounded only cascade restrict do nothing conflict vacuum refresh concurrently generated always identity stored attach detach function returns language call').split(' '),
+	);
+	const TIPE = new Set(
+		'int integer bigint smallint numeric decimal real double precision text varchar char character varying boolean bool date time timestamp timestamptz interval uuid json jsonb serial bigserial bytea money'.split(' '),
+	);
+	const POLA = /(--[^\n]*|\/\*[\s\S]*?(?:\*\/|$))|('(?:[^']|'')*'?|\$([A-Za-z_]\w*)?\$[\s\S]*?(?:\$\3\$|$))|("(?:[^"]|"")*"?)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_][A-Za-z0-9_]*)(?=(\s*\()?)/g;
+
+	/** Potongan [kelas, teks] sebuah kueri; kelas kosong = teks biasa. Diekspor lewat dswStudio untuk uji. */
+	function token(sql) {
+		const hasil = [];
+		let akhir = 0;
+		POLA.lastIndex = 0;
+		for (let m = POLA.exec(sql); m; m = POLA.exec(sql)) {
+			if (m[0] === '') {
+				POLA.lastIndex += 1;
+				continue;
+			}
+			if (m.index > akhir) hasil.push(['', sql.slice(akhir, m.index)]);
+			let kelas = '';
+			if (m[1] !== undefined) kelas = 'tk-komentar';
+			else if (m[2] !== undefined) kelas = 'tk-teks';
+			else if (m[4] !== undefined) kelas = 'tk-nama';
+			else if (m[5] !== undefined) kelas = 'tk-angka';
+			else if (m[6] !== undefined) {
+				const kata = m[6].toLowerCase();
+				kelas = KUNCI.has(kata) ? 'tk-kunci' : TIPE.has(kata) ? 'tk-tipe' : m[7] !== undefined ? 'tk-fungsi' : '';
+			}
+			hasil.push([kelas, m[0]]);
+			akhir = m.index + m[0].length;
+		}
+		if (akhir < sql.length) hasil.push(['', sql.slice(akhir)]);
+		return hasil;
+	}
+
+	let pewaktuSorot = 0;
+	function sorot() {
+		const el = editor();
+		const lapis = document.getElementById('st-sorot');
+		if (!(el instanceof HTMLTextAreaElement) || !lapis || !lapis.parentElement) return;
+		// Kueri sangat panjang: tanpa pewarnaan (kotak teks kembali berhuruf biasa) agar mengetik tetap ringan.
+		const polos = el.value.length > SOROT_MAKS;
+		lapis.parentElement.classList.toggle('st-sunting--polos', polos);
+		const isi = document.createDocumentFragment();
+		if (!polos) {
+			for (const [kelas, teks] of token(el.value)) {
+				if (!kelas) isi.appendChild(document.createTextNode(teks));
+				else {
+					const span = document.createElement('span');
+					span.className = kelas;
+					span.textContent = teks;
+					isi.appendChild(span);
+				}
+			}
+			// Baris kosong terakhir kotak teks tetap punya tinggi di lapisan <pre>.
+			isi.appendChild(document.createTextNode('\n '));
+		}
+		lapis.replaceChildren(isi);
+		lapis.scrollTop = el.scrollTop;
+		lapis.scrollLeft = el.scrollLeft;
+	}
+	function jadwalkanSorot() {
+		cancelAnimationFrame(pewaktuSorot);
+		pewaktuSorot = requestAnimationFrame(sorot);
+	}
+	document.addEventListener('input', (e) => {
+		if (e.target === editor()) jadwalkanSorot();
+	});
+	document.addEventListener(
+		'scroll',
+		(e) => {
+			const el = editor();
+			const lapis = document.getElementById('st-sorot');
+			if (e.target !== el || !lapis) return;
+			lapis.scrollTop = el.scrollTop;
+			lapis.scrollLeft = el.scrollLeft;
+		},
+		true,
+	);
 
 	/** Teks terpilih di jendela kueri bila ada, kalau tidak seluruh isinya. */
 	function kueri() {
@@ -87,7 +175,16 @@
 			if (el instanceof HTMLTextAreaElement) {
 				el.value = '';
 				el.focus();
+				sorot();
 			}
+		} else if (t === 'pivot' && d.sasaran) {
+			// Susunan pivot: nomor pilihan keempat <select>; ekstensi yang memeriksa dan menyusun kuerinya.
+			const nilai = (id) => {
+				const sel = document.getElementById(id);
+				return sel instanceof HTMLSelectElement ? Number(sel.value) : NaN;
+			};
+			const pesan = { tindakan: 'pivot', indeks: Number(d.sasaran.getAttribute('data-indeks')), baris: nilai('pv-baris'), kolom: nilai('pv-kolom'), ukuran: nilai('pv-ukuran'), agregat: nilai('pv-agregat') };
+			if (Object.values(pesan).every((v) => typeof v === 'string' || Number.isInteger(v))) dsw.kirim(pesan);
 		} else if (BER_SQL.has(t)) kirimSql(t);
 	});
 
@@ -106,12 +203,14 @@
 			if (e.key === 'Tab' && !e.shiftKey && !mod && !e.altKey) {
 				e.preventDefault();
 				el.setRangeText('\t', el.selectionStart, el.selectionEnd, 'end');
+				jadwalkanSorot();
 			} else if (e.key === 'Escape') el.blur();
 			return;
 		}
 		// Panah kiri/kanan berpindah tab keluaran.
 		if (el instanceof Element && el.getAttribute('role') === 'tab' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-			const urutan = ['hasil', 'pesan', 'rencana'];
+			// Hanya tab yang memang ada pada hasil ini (tab tampilan tidak selalu ada).
+			const urutan = el.parentElement ? [...el.parentElement.querySelectorAll('[role="tab"]')].map((t) => t.getAttribute('data-tab') || '') : [];
 			const i = urutan.indexOf(el.getAttribute('data-tab') || '');
 			if (i >= 0) {
 				e.preventDefault();
@@ -174,6 +273,7 @@
 					el.value = m.teks.slice(0, SQL_MAKS);
 					el.setSelectionRange(0, 0);
 					el.scrollTop = 0;
+					sorot();
 				}
 			}
 		} catch (x) {
@@ -194,11 +294,16 @@
 				operator: document.querySelectorAll('.rc__kartu').length,
 				tab: wadah ? [...wadah.querySelectorAll('[role="tab"]')].filter((t) => t.getAttribute('aria-selected') === 'true').map((t) => t.getAttribute('data-tab'))[0] || null : null,
 				editor: el instanceof HTMLTextAreaElement ? el.value : null,
+				token: document.querySelectorAll('#st-sorot span').length,
+				visual: document.querySelectorAll('#st-pane-visual').length,
 				galat: galat.slice(),
 			};
 		},
+		// Pengurai token pewarnaan (murni), untuk uji.
+		token,
 	};
 
+	sorot();
 	pasangHasil();
 	dsw.kirim({ tindakan: 'siap' });
 })();

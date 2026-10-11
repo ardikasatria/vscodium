@@ -317,9 +317,55 @@ async function run() {
         ];
         const skrip = await s.pesan({ tindakan: "skrip-create", indeks: 0 });
         const duaPernyataan = await s.pesan({ tindakan: "rencana", sql: "select 1; select 2" });
+        const pesanSebelum = s.keadaan().pesanPanel;
+        await vscode.commands.executeCommand("dsworkbench.studio.run");
+        await sampai(() => s.keadaan().model?.hasil?.judul === "Kueri" && s.keadaan().model?.hasil?.berjalan === false, 2e4, "").catch(() => void 0);
+        const pintasan = { pesanBaru: s.keadaan().pesanPanel - pesanSebelum, judul: s.keadaan().model?.hasil?.judul, urut: s.keadaan().model?.hasil?.urut, berjalan: s.keadaan().model?.hasil?.berjalan };
+        const dbt = path.join(mkPgd.akar, "modul-08-dbt");
+        fs.mkdirSync(path.join(dbt, "target"), { recursive: true });
+        fs.writeFileSync(path.join(dbt, "dbt_project.yml"), "name: nusamart\n");
+        fs.writeFileSync(
+          path.join(dbt, "target", "manifest.json"),
+          JSON.stringify({
+            metadata: { project_name: "nusamart" },
+            sources: { "source.n.staging.toko": { resource_type: "source", source_name: "staging", name: "toko" } },
+            nodes: {
+              "model.n.stg_toko": { resource_type: "model", name: "stg_toko<b>", config: { materialized: "view" }, depends_on: { nodes: ["source.n.staging.toko"] } },
+              "test.n.unik": { resource_type: "test", name: "unique_stg_toko", test_metadata: { name: "unique" }, depends_on: { nodes: ["model.n.stg_toko"] } }
+            }
+          })
+        );
+        fs.writeFileSync(path.join(dbt, "target", "run_results.json"), JSON.stringify({ results: [{ unique_id: "test.n.unik", status: "fail", failures: 3 }] }));
+        const lineage = { hasil: await s.pesan({ tindakan: "lineage" }), bagian: s.keadaan().bagian?.["s-hasil"] ?? "" };
+        const kualitas = { hasil: await s.pesan({ tindakan: "kualitas" }), bagian: s.keadaan().bagian?.["s-hasil"] ?? "" };
+        const pivotBuka = { hasil: await s.pesan({ tindakan: "pivot-buka", indeks: 0 }), bagian: s.keadaan().bagian?.["s-hasil"] ?? "" };
+        const pivotSama = await s.pesan({ tindakan: "pivot", indeks: 0, baris: 0, kolom: 0, ukuran: -1, agregat: 1 });
+        const pivot = { hasil: await s.pesan({ tindakan: "pivot", indeks: 0, baris: 0, kolom: -1, ukuran: -1, agregat: 1 }), bagian: s.keadaan().bagian?.["s-hasil"] ?? "", editor: s.keadaan().editor.slice(-1)[0] };
+        const etl = { hasil: await s.pesan({ tindakan: "alur-etl" }), bagian: s.keadaan().bagian?.["s-hasil"] ?? "" };
         const jalankan = await s.pesan({ tindakan: "jalankan", sql: "select 1" });
         const k1 = s.keadaan();
-        hasil["studio"] = { bukanLayanan: bukanLayananStudio, tab: tabStudio, pesanPanel: k0.pesanPanel, siapPanel: k0.siapPanel, html: k0.html, model: k0.model, bagian: k0.bagian, ditolak: ditolakStudio, skrip, editor: k1.editor, duaPernyataan, jalankan, setelah: { model: k1.model, bagian: k1.bagian, sibuk: k1.sibuk } };
+        hasil["studio"] = {
+          pintasan,
+          lineage,
+          kualitas,
+          pivotBuka,
+          pivotSama,
+          pivot,
+          etl,
+          bukanLayanan: bukanLayananStudio,
+          tab: tabStudio,
+          pesanPanel: k0.pesanPanel,
+          siapPanel: k0.siapPanel,
+          html: k0.html,
+          model: k0.model,
+          bagian: k0.bagian,
+          ditolak: ditolakStudio,
+          skrip,
+          editor: k1.editor,
+          duaPernyataan,
+          jalankan,
+          setelah: { model: k1.model, bagian: k1.bagian, sibuk: k1.sibuk }
+        };
       }
     }
     if (api.uji.github) {
