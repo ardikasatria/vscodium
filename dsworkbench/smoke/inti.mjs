@@ -1000,7 +1000,8 @@ try {
 		assert.ok(b.pesanPanel >= 1, 'skrip panel Bravais berjalan dan mengirim "siap"');
 		assert.ok(permintaan.some((x) => x.jalur === '/api/me/companion/config'), 'konfigurasi diambil setelah panel siap');
 		assert.equal(b.kirim, 'terkirim');
-		const tanya = permintaan.filter((x) => x.jalur === '/api/me/companion/assistant');
+		// Pertanyaan terpandu dari DSWorkbench Viz (konteks berjenis viz) diperiksa di bagian Viz.
+		const tanya = permintaan.filter((x) => x.jalur === '/api/me/companion/assistant' && x.badan?.view?.kind !== 'viz');
 		assert.equal(tanya.length, 1);
 		assert.deepEqual(tanya[0].badan, {
 			message: 'Jelaskan sel yang sedang saya buka.',
@@ -1016,7 +1017,8 @@ try {
 		assert.ok(bravais.tagihan >= 2, 'job ditagih sampai selesai');
 		assert.deepEqual(permintaan.find((x) => x.metode === 'POST' && x.jalur === '/api/me/companion/chats').badan, { title: 'Jelaskan sel yang sedang saya buka.', courseId: COURSE, moduleId: MODUL2 });
 		const simpan = permintaan.filter((x) => x.jalur === '/api/me/companion/chats/c-uji/messages').map((x) => x.badan);
-		assert.deepEqual(simpan, [{ role: 'user', content: 'Jelaskan sel yang sedang saya buka.' }, { role: 'assistant', content: JAWABAN_BRAVAIS, route: 'llm', sources: [] }]);
+		// Dua giliran pertama = pertanyaan dari panel Bravais; giliran sesudahnya (bila ada) berasal dari tombol Bravais di DSWorkbench Viz.
+		assert.deepEqual(simpan.slice(0, 2), [{ role: 'user', content: 'Jelaskan sel yang sedang saya buka.' }, { role: 'assistant', content: JAWABAN_BRAVAIS, route: 'llm', sources: [] }]);
 		assert.ok(!JSON.stringify(simpan).includes('starter modul 2'), 'konteks jendela tidak ikut disimpan ke riwayat');
 		const k = b.keadaan;
 		assert.deepEqual([k.masuk, k.asisten, k.sibuk, k.pesan.length, k.judul], [true, true, false, 2, 'Jelaskan sel yang sedang saya buka.']);
@@ -1445,6 +1447,48 @@ try {
 					assert.ok(/GROUP BY ROLLUP \(/.test(s.pivot.editor) && s.pivot.editor.includes('COUNT(*) AS nilai'), s.pivot.editor);
 					assert.ok(s.pivot.bagian.includes('Pivot tidak dapat dihitung'));
 					assert.ok(s.etl.bagian.includes('Audit pemuatan tidak terbaca') && /id="st-tab-visual"[^>]*aria-selected="true"[^>]*>Alur ETL</.test(s.etl.bagian));
+				});
+			}
+			if (h.viz) {
+				const v = h.viz;
+				periksa('DSWorkbench Viz 0.3.0: dibuka dari Studio Data untuk satu tabel sebagai tab tersendiri, skrip Vega-Lite berjalan di bawah CSP panel yang ketat, kueri ringkas disusun ekstensi dan dijalankan lewat Local Runner, dasbor disimpan dan dibuka kembali dari folder kerja', () => {
+					assert.ok(h.perintah.includes('dsworkbench.viz.openFile'));
+					assert.equal(v.bukanSatu, 'bukan_satu');
+					assert.equal(v.dariTabel, 'viz');
+					assert.deepEqual(v.tab, ['DSWorkbench Viz']);
+					assert.ok(v.siapPanel && v.pesanPanel >= 1, 'bundel Vega-Lite termuat dan skrip panel mengirim "siap" di bawah CSP tanpa unsafe-eval/unsafe-inline');
+					const csp = cspDari(v.html);
+					assert.ok(csp.startsWith("default-src 'none'") && csp.includes("connect-src 'none'") && /script-src 'nonce-[0-9a-f]{32}'/.test(csp) && !/unsafe|worker-src/.test(csp), csp);
+					assert.equal(v.sumber.jenis, 'tabel');
+					assert.ok(v.kolom.length > 0 && v.kolom.every((k) => ['dimensi', 'ukuran', 'waktu'].includes(k.jenis)));
+					assert.deepEqual(v.ditolak, ['ditolak', 'ditolak', 'ditolak', 'ditolak', 'ditolak']);
+					// Mesin uji tanpa PostgreSQL: kueri sampai ke Local Runner dan galatnya dikirim ke panel bersama kuerinya.
+					assert.ok(typeof v.hitung === 'string' && v.hitung !== 'ditolak' && v.hitung !== 'succeeded', v.hitung);
+					assert.ok(v.dataTerkirim && v.dataTerkirim.token === 7 && typeof v.dataTerkirim.galat === 'string' && /^SELECT .* AS d_x,\n\s+COUNT\(\*\) AS u_y\nFROM /.test(v.dataTerkirim.sql) && /ORDER BY 2 DESC NULLS LAST, 1\nLIMIT 10$/.test(v.dataTerkirim.sql), JSON.stringify(v.dataTerkirim));
+					assert.equal(v.simpan, 'disimpan');
+					const b = JSON.parse(v.berkasViz);
+					assert.equal(b.format, 'dsworkbench-viz');
+					// Penyusun dasbor: judul dirapikan; lembar "angka ringkas" ditambahkan lalu dipindah ke depan; saringan
+					// hanya menerima NOMOR pada daftar nilai yang sudah dibaca ekstensi (belum dibaca → ditolak; teks → ditolak).
+					assert.deepEqual(v.dasborViz, ['judul', 'disimpan', 'dipindah', 'ditolak', 'ditolak', 'ditolak']);
+					assert.ok(typeof v.saringBuka === 'string' && v.saringBuka !== 'ditolak' && v.saringBuka !== 'nilai', v.saringBuka);
+					// Bravais dari Viz: pertanyaan terpandu (teks milik ekstensi) dengan konteks jendela berjenis viz —
+					// nama kolom, susunan rak, dan kueri ringkas; tidak ada baris data.
+					assert.deepEqual(v.bravaisViz, ['bravais', 'ditolak', 'ditolak']);
+					const tanyaViz = permintaan.filter((x) => x.jalur === '/api/me/companion/assistant' && x.badan?.view?.kind === 'viz');
+					assert.equal(tanyaViz.length, 1, 'satu pertanyaan terpandu terkirim dengan konteks Viz');
+					const tv = tanyaViz[0].badan;
+					assert.ok(/Jelaskan cara membaca bagan/.test(tv.message ?? tv.question ?? JSON.stringify(tv)) && /mengapa/.test(JSON.stringify(tv)), JSON.stringify(tv).slice(0, 300));
+					assert.ok(tv.view.path.endsWith('/viz') && tv.view.detail.some((d) => d.label === 'Susunan rak') && tv.view.detail.length <= 8);
+					assert.equal(tv.view.snippet?.lang, 'sql');
+					assert.ok(!JSON.stringify(tv).includes('"baris"') && !JSON.stringify(tv).includes('"rows"'), 'isi tabel tidak pernah dikirim ke Bravais');
+					assert.equal(b.judul, 'Dasbor <i>uji</i>');
+					assert.deepEqual(b.lembar.map((l) => [l.judul, l.tanda, l.lebar]), [['Total', 'angka', 'sepertiga'], ['Per <b>kolom</b>', 'bar', 'penuh']]);
+					assert.deepEqual([b.sumber.jenis, b.lembar[1].urut, b.lembar[1].batas, b.lembar[1].rak.y.kolom], ['tabel', 'ukuran-turun', 10, '*']);
+					assert.equal(typeof b.lembar[1].rak.x.kolom, 'string', 'kolom ditulis dengan nama, bukan nomor');
+					assert.equal(v.bukaLagi, 'dibuka');
+					assert.deepEqual([v.lembarDibuka.length, v.lembarDibuka[0].judul, v.lembarDibuka[1].judul, v.lembarDibuka[1].tanda, v.lembarDibuka[1].rak.y.kolom, v.judulDibuka, v.kotor], [2, 'Total', 'Per <b>kolom</b>', 1, -1, 'Dasbor <i>uji</i>', false]);
+					assert.ok(String(v.berkasDibuka).endsWith('uji.dswviz.json'));
 				});
 			}
 		} else {

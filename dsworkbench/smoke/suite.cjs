@@ -343,6 +343,42 @@ async function run() {
         const pivot = { hasil: await s.pesan({ tindakan: "pivot", indeks: 0, baris: 0, kolom: -1, ukuran: -1, agregat: 1 }), bagian: s.keadaan().bagian?.["s-hasil"] ?? "", editor: s.keadaan().editor.slice(-1)[0] };
         const etl = { hasil: await s.pesan({ tindakan: "alur-etl" }), bagian: s.keadaan().bagian?.["s-hasil"] ?? "" };
         const jalankan = await s.pesan({ tindakan: "jalankan", sql: "select 1" });
+        if (api.uji.viz) {
+          const v = api.uji.viz;
+          const bukanSatu = await s.pesan({ tindakan: "viz-kueri", sql: "select 1; select 2" });
+          const dariTabel = await s.pesan({ tindakan: "viz", indeks: 0 });
+          await sampai(() => v.keadaan().siapPanel, 2e4, "").catch(() => void 0);
+          const awalViz = v.keadaan();
+          const tabViz = vscode.window.tabGroups.all.flatMap((x) => x.tabs).filter((t) => t.input instanceof vscode.TabInputWebview && t.input.viewType.includes("dsworkbench.viz")).map((t) => t.label);
+          const isiLembar = { judul: "Per <b>kolom</b>", rak: { x: { kolom: 0, agregat: 0, butir: 0 }, y: { kolom: -1, agregat: 4, butir: 0 } }, tanda: 1, urut: 1, batas: 1, lebar: 2 };
+          const ditolakViz = [
+            await v.pesan({ tindakan: "susun", lembar: 0, token: 1, isi: { ...isiLembar, rak: { x: { kolom: 999, agregat: 0, butir: 0 } } } }),
+            await v.pesan({ tindakan: "susun", lembar: 0, token: 1, isi: isiLembar, sql: "drop table x" }),
+            await v.pesan({ tindakan: "jalankan", sql: "select 1" }),
+            await v.pesan({ tindakan: "ekspor", lembar: 0, format: "svg", isi: "<svg><script>x</script></svg>" }),
+            await v.pesan({ tindakan: "hapus-lembar", lembar: 0 })
+          ];
+          const hitung = await v.pesan({ tindakan: "susun", lembar: 0, token: 7, isi: isiLembar });
+          const dataTerkirim = v.keadaan().terkirim.filter((m) => m.jenis === "data").slice(-1)[0];
+          const dasborViz = [
+            await v.pesan({ tindakan: "dasbor", judul: "  Dasbor <i>uji</i>  " }),
+            await v.pesan({ tindakan: "susun", lembar: 1, token: 0, isi: { judul: "Total", rak: { y: { kolom: -1, agregat: 4, butir: 0 } }, tanda: 6, urut: 0, batas: 0, lebar: 0 } }),
+            await v.pesan({ tindakan: "pindah-lembar", lembar: 1, ke: 0 }),
+            await v.pesan({ tindakan: "saring", kolom: 0, pilih: [0] }),
+            await v.pesan({ tindakan: "saring", kolom: 0, pilih: [0, 0] }),
+            await v.pesan({ tindakan: "saring", kolom: 0, nilai: ["x' OR 1=1"] })
+          ];
+          const saringBuka = await v.pesan({ tindakan: "saring-buka", kolom: 0 });
+          const bravaisViz = [await v.pesan({ tindakan: "bravais", indeks: 1 }), await v.pesan({ tindakan: "bravais", indeks: 9 }), await v.pesan({ tindakan: "bravais", indeks: 0, teks: "kerjakan tugas saya" })];
+          const tujuan = path.join(mkPgd.akar, "viz", "uji.dswviz.json");
+          v.dialog({ simpan: async () => tujuan });
+          const simpan = await v.pesan({ tindakan: "simpan" });
+          const berkasViz = fs.existsSync(tujuan) ? fs.readFileSync(tujuan, "utf8") : "";
+          await v.pesan({ tindakan: "susun", lembar: 0, token: 0, isi: { judul: "Diubah", rak: {}, tanda: 0, urut: 0, batas: 0, lebar: 1 } });
+          const bukaLagi = await v.bukaBerkas(tujuan, P);
+          const setelahBuka = v.keadaan();
+          hasil["viz"] = { bukanSatu, dariTabel, tab: tabViz, siapPanel: awalViz.siapPanel, pesanPanel: awalViz.pesanPanel, html: awalViz.html, sumber: awalViz.isi?.sumber, kolom: awalViz.isi?.kolom, ditolak: ditolakViz, hitung, dataTerkirim, dasborViz, saringBuka, bravaisViz, judulDibuka: setelahBuka.isi?.judul, simpan, berkasViz, bukaLagi, lembarDibuka: setelahBuka.isi?.lembar, berkasDibuka: setelahBuka.isi?.berkas, kotor: setelahBuka.isi?.kotor };
+        }
         const k1 = s.keadaan();
         hasil["studio"] = {
           pintasan,

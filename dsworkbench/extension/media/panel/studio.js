@@ -7,7 +7,7 @@
 	const dsw = window.dsw;
 	const BAGIAN = new Set(['s-alat', 's-jelajah', 's-hasil', 's-status']);
 	const TAB = new Set(['hasil', 'pesan', 'rencana', 'visual']);
-	const BER_SQL = new Set(['jalankan', 'rencana', 'rencana-aktual']);
+	const BER_SQL = new Set(['jalankan', 'rencana', 'rencana-aktual', 'viz-kueri']);
 	const SQL_MAKS = 100000;
 	const galat = [];
 	// Tab keluaran yang dipilih pengguna diingat selama hasilnya sama (`data-urut`).
