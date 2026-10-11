@@ -1470,7 +1470,10 @@ try {
 					assert.equal(b.format, 'dsworkbench-viz');
 					// Penyusun dasbor: judul dirapikan; lembar "angka ringkas" ditambahkan lalu dipindah ke depan; saringan
 					// hanya menerima NOMOR pada daftar nilai yang sudah dibaca ekstensi (belum dibaca → ditolak; teks → ditolak).
-					assert.deepEqual(v.dasborViz, ['judul', 'disimpan', 'dipindah', 'ditolak', 'ditolak', 'ditolak']);
+					assert.deepEqual(v.dasborViz, ['judul', 'disimpan', 'ditolak', 'dipindah', 'ditolak', 'ditolak', 'ditolak']);
+					// Tata letak bebas ubin tersimpan di berkas dan kembali saat dibuka; ubin tanpa letak tetap otomatis.
+					assert.deepEqual([b.lembar[0].tata, b.lembar[1].tata], [{ x: 6, y: 0, w: 6, h: 3 }, undefined]);
+					assert.deepEqual(v.tataDibuka.map((t) => t ?? null), [{ x: 6, y: 0, w: 6, h: 3 }, null]);
 					assert.ok(typeof v.saringBuka === 'string' && v.saringBuka !== 'ditolak' && v.saringBuka !== 'nilai', v.saringBuka);
 					// Bravais dari Viz: pertanyaan terpandu (teks milik ekstensi) dengan konteks jendela berjenis viz —
 					// nama kolom, susunan rak, dan kueri ringkas; tidak ada baris data.

@@ -362,7 +362,9 @@ async function run() {
           const dataTerkirim = v.keadaan().terkirim.filter((m) => m.jenis === "data").slice(-1)[0];
           const dasborViz = [
             await v.pesan({ tindakan: "dasbor", judul: "  Dasbor <i>uji</i>  " }),
-            await v.pesan({ tindakan: "susun", lembar: 1, token: 0, isi: { judul: "Total", rak: { y: { kolom: -1, agregat: 4, butir: 0 } }, tanda: 6, urut: 0, batas: 0, lebar: 0 } }),
+            await v.pesan({ tindakan: "susun", lembar: 1, token: 0, isi: { judul: "Total", rak: { y: { kolom: -1, agregat: 4, butir: 0 } }, tanda: 6, urut: 0, batas: 0, lebar: 0, tata: { x: 6, y: 0, w: 6, h: 3 } } }),
+            // Tata letak bebas: letak di luar kisi menolak susunannya.
+            await v.pesan({ tindakan: "susun", lembar: 1, token: 0, isi: { judul: "Total", rak: {}, tanda: 6, urut: 0, batas: 0, lebar: 0, tata: { x: 9, y: 0, w: 6, h: 3 } } }),
             await v.pesan({ tindakan: "pindah-lembar", lembar: 1, ke: 0 }),
             await v.pesan({ tindakan: "saring", kolom: 0, pilih: [0] }),
             await v.pesan({ tindakan: "saring", kolom: 0, pilih: [0, 0] }),
@@ -377,7 +379,7 @@ async function run() {
           await v.pesan({ tindakan: "susun", lembar: 0, token: 0, isi: { judul: "Diubah", rak: {}, tanda: 0, urut: 0, batas: 0, lebar: 1 } });
           const bukaLagi = await v.bukaBerkas(tujuan, P);
           const setelahBuka = v.keadaan();
-          hasil["viz"] = { bukanSatu, dariTabel, tab: tabViz, siapPanel: awalViz.siapPanel, pesanPanel: awalViz.pesanPanel, html: awalViz.html, sumber: awalViz.isi?.sumber, kolom: awalViz.isi?.kolom, ditolak: ditolakViz, hitung, dataTerkirim, dasborViz, saringBuka, bravaisViz, judulDibuka: setelahBuka.isi?.judul, simpan, berkasViz, bukaLagi, lembarDibuka: setelahBuka.isi?.lembar, berkasDibuka: setelahBuka.isi?.berkas, kotor: setelahBuka.isi?.kotor };
+          hasil["viz"] = { bukanSatu, dariTabel, tab: tabViz, siapPanel: awalViz.siapPanel, pesanPanel: awalViz.pesanPanel, html: awalViz.html, sumber: awalViz.isi?.sumber, kolom: awalViz.isi?.kolom, ditolak: ditolakViz, hitung, dataTerkirim, dasborViz, saringBuka, bravaisViz, judulDibuka: setelahBuka.isi?.judul, simpan, berkasViz, bukaLagi, lembarDibuka: setelahBuka.isi?.lembar, tataDibuka: setelahBuka.isi?.lembar.map((l) => l.tata), berkasDibuka: setelahBuka.isi?.berkas, kotor: setelahBuka.isi?.kotor };
         }
         const k1 = s.keadaan();
         hasil["studio"] = {
