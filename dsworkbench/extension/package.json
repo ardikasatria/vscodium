@@ -2,8 +2,8 @@
   "name": "dsworkbench",
   "displayName": "DSWorkbench",
   "icon": "media/ikon.png",
-  "description": "Kelas, naskah modul, notebook, tugas, checkpoint, SQL, terminal praktikum, asisten belajar Bravais, alat bantu menulis LaTeX, dan Berkas saya untuk Sains Data ITERA, dijalankan di komputer Anda lewat Local Runner.",
-  "version": "0.1.8",
+  "description": "Kelas, naskah modul, notebook, tugas, checkpoint, SQL, Studio Data, terminal praktikum, asisten belajar Bravais, alat bantu menulis LaTeX, dan Berkas saya untuk Sains Data ITERA, dijalankan di komputer Anda lewat Local Runner.",
+  "version": "0.1.9",
   "publisher": "sditera",
   "private": true,
   "license": "UNLICENSED",
@@ -326,6 +326,30 @@
         "title": "Pergudangan Data",
         "category": "DSWorkbench",
         "icon": "$(layout)"
+      },
+      {
+        "command": "dsworkbench.studio.open",
+        "title": "Studio Data",
+        "category": "DSWorkbench",
+        "icon": "$(server-environment)"
+      },
+      {
+        "command": "dsworkbench.studio.run",
+        "title": "Studio Data: Jalankan kueri",
+        "category": "DSWorkbench",
+        "icon": "$(play)"
+      },
+      {
+        "command": "dsworkbench.studio.plan",
+        "title": "Studio Data: Rencana perkiraan",
+        "category": "DSWorkbench",
+        "icon": "$(type-hierarchy)"
+      },
+      {
+        "command": "dsworkbench.studio.planActual",
+        "title": "Studio Data: Rencana aktual",
+        "category": "DSWorkbench",
+        "icon": "$(type-hierarchy-sub)"
       },
       {
         "command": "dsworkbench.sql.serviceMenu",
@@ -723,6 +747,22 @@
           "when": "dsworkbench.masuk"
         },
         {
+          "command": "dsworkbench.studio.open",
+          "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.studio.run",
+          "when": "activeWebviewPanelId == 'dsworkbench.studio'"
+        },
+        {
+          "command": "dsworkbench.studio.plan",
+          "when": "activeWebviewPanelId == 'dsworkbench.studio'"
+        },
+        {
+          "command": "dsworkbench.studio.planActual",
+          "when": "activeWebviewPanelId == 'dsworkbench.studio'"
+        },
+        {
           "command": "dsworkbench.github.link",
           "when": "dsworkbench.masuk"
         },
@@ -807,6 +847,11 @@
           "command": "dsworkbench.gudang.open",
           "when": "view == dsworkbench.basisData && dsworkbench.masuk",
           "group": "navigation@0"
+        },
+        {
+          "command": "dsworkbench.studio.open",
+          "when": "view == dsworkbench.basisData && dsworkbench.masuk",
+          "group": "navigation@1"
         },
         {
           "command": "dsworkbench.writing.new",
@@ -986,6 +1031,11 @@
           "group": "0_baca@1"
         },
         {
+          "command": "dsworkbench.studio.open",
+          "when": "view == dsworkbench.kelas && viewItem =~ /Gudang$/",
+          "group": "0_baca@2"
+        },
+        {
           "command": "dsworkbench.github.link",
           "when": "view == dsworkbench.status && viewItem =~ /^github(Belum|Lain)$/",
           "group": "inline@1"
@@ -1126,6 +1176,30 @@
             ]
           }
         ]
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "dsworkbench.studio.run",
+        "key": "f5",
+        "when": "activeWebviewPanelId == 'dsworkbench.studio'"
+      },
+      {
+        "command": "dsworkbench.studio.run",
+        "key": "ctrl+enter",
+        "mac": "cmd+enter",
+        "when": "activeWebviewPanelId == 'dsworkbench.studio'"
+      },
+      {
+        "command": "dsworkbench.studio.plan",
+        "key": "ctrl+l",
+        "mac": "cmd+l",
+        "when": "activeWebviewPanelId == 'dsworkbench.studio'"
+      },
+      {
+        "command": "dsworkbench.studio.planActual",
+        "key": "ctrl+m",
+        "when": "activeWebviewPanelId == 'dsworkbench.studio'"
       }
     ]
   }

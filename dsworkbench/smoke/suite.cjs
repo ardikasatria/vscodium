@@ -298,6 +298,29 @@ async function run() {
       const hasilLain = await g.pesan({ tindakan: "pilih-modul", indeks: 2 });
       const modulLain = { hasil: hasilLain, dataset: g.keadaan().bagian?.["b-dataset"] ?? "", cek: g.keadaan().bagian?.["b-cek"] ?? "" };
       hasil["gudang"] = { cek, modulLain, berlayanan, bukanLayanan, tab: tab?.label, pesanPanel: g.keadaan().pesanPanel, siapPanel: g.keadaan().siapPanel, html, awal, muatSebelumSiap, nyalakan, menyala, siapkan, setelahSiapkan, muat, setelahMuat, pilihSkema, saring, bukaBerkas, bukaBerkasBelumAda, ditolak, modulTerkunci };
+      if (api.uji.studio) {
+        const s = api.uji.studio;
+        await s.buka(C);
+        const bukanLayananStudio = s.keadaan().terbuka;
+        await s.buka(P);
+        await sampai(() => s.keadaan().pesanPanel >= 1, 2e4, "").catch(() => void 0);
+        await sampai(() => s.keadaan().model?.katalog.jenis === "siap", 2e4, "").catch(() => void 0);
+        const tabStudio = vscode.window.tabGroups.all.flatMap((x) => x.tabs).filter((t) => t.input instanceof vscode.TabInputWebview && /dsworkbench\.(studio|gudang)/.test(t.input.viewType)).map((t) => t.label);
+        const k0 = s.keadaan();
+        const ditolakStudio = [
+          await s.pesan({ tindakan: "jalankan" }),
+          await s.pesan({ tindakan: "jalankan", sql: "select 1", alias: "source" }),
+          await s.pesan({ tindakan: "teratas", indeks: 999 }),
+          await s.pesan({ tindakan: "rancangan", indeks: 0, tabel: "dw.x" }),
+          await s.pesan({ tindakan: "pilih-target", indeks: 99 }),
+          await s.pesan("jalankan")
+        ];
+        const skrip = await s.pesan({ tindakan: "skrip-create", indeks: 0 });
+        const duaPernyataan = await s.pesan({ tindakan: "rencana", sql: "select 1; select 2" });
+        const jalankan = await s.pesan({ tindakan: "jalankan", sql: "select 1" });
+        const k1 = s.keadaan();
+        hasil["studio"] = { bukanLayanan: bukanLayananStudio, tab: tabStudio, pesanPanel: k0.pesanPanel, siapPanel: k0.siapPanel, html: k0.html, model: k0.model, bagian: k0.bagian, ditolak: ditolakStudio, skrip, editor: k1.editor, duaPernyataan, jalankan, setelah: { model: k1.model, bagian: k1.bagian, sibuk: k1.sibuk } };
+      }
     }
     if (api.uji.github) {
       const gh = api.uji.github;

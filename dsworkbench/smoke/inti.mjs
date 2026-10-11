@@ -1391,6 +1391,45 @@ try {
 			// Arahan "ke web" untuk checkpoint sudah tidak ada di panel.
 			assert.ok(!/Pemeriksa SQL modul \(checkpoint SQL\)|halaman Checkpoint di web/.test(g.html + g.setelahMuat.bagian['b-web']));
 		});
+		// --- Panel "Studio Data" (0.1.9) --------------------------------------------------------
+		if (h.studio) {
+			const s = h.studio;
+			periksa('panel Studio Data: tab tersendiri di samping Pergudangan Data (panel lama tidak hilang), skrip panel berjalan di bawah CSP, penjelajah objek dari katalog, tanpa jalur baru ke relay', () => {
+				for (const c of ['dsworkbench.studio.open', 'dsworkbench.studio.run', 'dsworkbench.studio.plan', 'dsworkbench.studio.planActual', 'dsworkbench.gudang.open']) assert.ok(h.perintah.includes(c), c);
+				assert.equal(s.bukanLayanan, false, 'mata kuliah tanpa basis data praktikum: panel tidak dibuka');
+				assert.deepEqual([...s.tab].sort(), ['Pergudangan Data', 'Studio Data']);
+				assert.ok(s.pesanPanel >= 1 && s.siapPanel, 'skrip panel berjalan dan mengirim "siap"');
+				const csp = cspDari(s.html);
+				assert.ok(csp.startsWith("default-src 'none'") && csp.includes("connect-src 'none'") && /script-src 'nonce-[0-9a-f]{32}'/.test(csp) && !/unsafe/.test(csp), csp);
+				assert.ok(!s.html.includes(TOKEN) && !s.html.includes(SERVER) && !/<iframe|<form\b|\son[a-z]+="|<link\b|style="/.test(s.html));
+				assert.equal((s.html.match(/<script\b/g) ?? []).length, 2);
+				// Satu-satunya gambar: logo DSWorkbench milik ekstensi; tidak ada merek pihak lain.
+				assert.deepEqual((s.html.match(/<img\b[^>]*>/g) ?? []).map((x) => /dsworkbench\.svg/.test(x)), [true]);
+				assert.ok(!/microsoft|sql server|ssms/i.test(s.html));
+				assert.equal(s.model.namaMataKuliah, 'Pergudangan Data');
+				assert.equal(s.model.katalog.jenis, 'siap');
+				const j = s.bagian['s-jelajah'];
+				assert.equal((j.match(/class="po__server"/g) ?? []).length, 2);
+				assert.ok(j.includes('localhost:5433') && j.includes('Tabel (') && j.includes('dw.fakta_penjualan') && j.includes('data-tindakan="teratas"') && j.includes('data-tindakan="rancangan"'));
+				assert.ok(!j.includes('<img') && j.includes('&lt;img'), 'nama kolom dari basis data di-escape');
+				assert.ok(!opPgd.includes('sql.execute') && !opPgd.includes('db.catalog'), 'kueri dan katalog Studio lewat pipa, bukan relay');
+			});
+			periksa('panel Studio Data: pesan panel yang tidak sah ditolak; skrip CREATE dari katalog masuk ke jendela kueri; rencana hanya untuk satu pernyataan; kueri dijalankan lewat Local Runner dan galatnya tampil di tab Pesan', () => {
+				assert.deepEqual(s.ditolak, ['ditolak', 'ditolak', 'ditolak', 'ditolak', 'ditolak', 'ditolak']);
+				assert.equal(s.skrip, 'skrip');
+				assert.ok(s.editor.length === 1 && /^-- Skrip dari katalog/.test(s.editor[0]) && s.editor[0].includes('CREATE TABLE dw.'), s.editor[0]);
+				assert.equal(s.duaPernyataan, 'bukan_satu');
+				// Mesin uji tanpa PostgreSQL: kueri sampai ke Local Runner dan berakhir bukan-berhasil, dengan pesannya.
+				assert.ok(typeof s.jalankan === 'string' && s.jalankan !== 'ditolak' && s.jalankan !== 'succeeded', s.jalankan);
+				const h1 = s.setelah.model.hasil;
+				assert.ok(h1 && h1.berjalan === false && h1.tab === 'pesan' && h1.judul === 'Kueri');
+				assert.equal(s.setelah.sibuk, false);
+				assert.ok(/id="st-tab-pesan"[^>]*aria-selected="true"/.test(s.setelah.bagian['s-hasil']) && s.setelah.bagian['s-hasil'].includes('class="st-pesan galat"'));
+				assert.ok(s.setelah.bagian['s-status'].includes('st-status--galat'));
+			});
+		} else {
+			dilewati.push('panel Studio Data: ekstensi yang diuji belum punya kait uji panel (versi lama)');
+		}
 	} else {
 		dilewati.push('panel Pergudangan Data: ekstensi yang diuji belum punya kait uji panel (versi lama)');
 	}
