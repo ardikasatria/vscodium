@@ -384,7 +384,9 @@ async function run() {
           v.dialog({ simpan: async () => tujuan, pasangMesin: async () => false });
           const dataTanpaMesin = await v.bukaData([csv]);
           const sesudahData = v.keadaan().isi?.sumber.jenis;
-          hasil["viz"] = { dataTanpaMesin, sesudahData, bukanSatu, dariTabel, tab: tabViz, siapPanel: awalViz.siapPanel, pesanPanel: awalViz.pesanPanel, html: awalViz.html, sumber: awalViz.isi?.sumber, kolom: awalViz.isi?.kolom, ditolak: ditolakViz, hitung, dataTerkirim, dasborViz, saringBuka, bravaisViz, judulDibuka: setelahBuka.isi?.judul, simpan, berkasViz, bukaLagi, lembarDibuka: setelahBuka.isi?.lembar, tataDibuka: setelahBuka.isi?.lembar.map((l) => l.tata), berkasDibuka: setelahBuka.isi?.berkas, kotor: setelahBuka.isi?.kotor };
+          const folderTanpaMesin = await v.bukaData([path.dirname(csv)]);
+          const aturBukanBerkas = await v.pesan({ tindakan: "atur-data" });
+          hasil["viz"] = { dataTanpaMesin, sesudahData, folderTanpaMesin, aturBukanBerkas, bukanSatu, dariTabel, tab: tabViz, siapPanel: awalViz.siapPanel, pesanPanel: awalViz.pesanPanel, html: awalViz.html, sumber: awalViz.isi?.sumber, kolom: awalViz.isi?.kolom, ditolak: ditolakViz, hitung, dataTerkirim, dasborViz, saringBuka, bravaisViz, judulDibuka: setelahBuka.isi?.judul, simpan, berkasViz, bukaLagi, lembarDibuka: setelahBuka.isi?.lembar, tataDibuka: setelahBuka.isi?.lembar.map((l) => l.tata), berkasDibuka: setelahBuka.isi?.berkas, kotor: setelahBuka.isi?.kotor };
         }
         const k1 = s.keadaan();
         hasil["studio"] = {

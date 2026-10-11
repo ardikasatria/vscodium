@@ -4,6 +4,9 @@ Dijalankan ekstensi sebagai proses anak dari lingkungan Python khusus Viz. Proto
 objek JSON per baris di stdin, satu jawaban JSON per baris di stdout.
 
     {"id": 1, "op": "buka", "berkas": ["/jalur/penjualan.parquet"]}
+    {"id": 1, "op": "intip", "berkas": [...]}                      (kolom tiap berkas, tanpa memuat)
+    {"id": 1, "op": "buka", "tabel": [{"nama": "penjualan", "berkas": [...]}, {"nama": "produk", "berkas": [...]}],
+     "gabung": [{"kiri": "penjualan", "kolomKiri": "produk_id", "kanan": "produk", "kolomKanan": "produk_id", "jenis": "left"}]}
     {"id": 2, "op": "kueri", "sql": "SELECT ... FROM sumber ...", "maks": 1000}
 
 Berkas pilihan pengguna dibuka sebagai tabel/view bernama ``sumber``. Sesudah itu akses DuckDB
@@ -19,6 +22,7 @@ import decimal
 import json
 import math
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -65,9 +69,17 @@ def _tutup():
         _con = None
 
 
-def buka(berkas):
-    """Muat berkas data sebagai ``sumber`` lalu kunci akses ke luar."""
-    global _con
+NAMA_TABEL = re.compile(r"^[a-z_][a-z0-9_]{0,40}$")
+TABEL_MAKS = 12
+JENIS_GABUNG = {"left": "LEFT JOIN", "inner": "INNER JOIN"}
+
+
+def _qi(nama):
+    return '"' + str(nama).replace('"', '""') + '"'
+
+
+def _jalur_sah(berkas):
+    """Jalur berkas data yang ada dan berjenis dikenal; mengembalikan (jalur nyata, parquet?)."""
     if not isinstance(berkas, list) or not berkas or len(berkas) > BERKAS_MAKS:
         raise ValueError("Pilih satu sampai %d berkas data." % BERKAS_MAKS)
     jalur = []
@@ -78,7 +90,54 @@ def buka(berkas):
     akhiran = {os.path.splitext(j)[1].lower() for j in jalur}
     parquet = akhiran <= set(AKHIRAN_PARQUET)
     if not parquet and not akhiran <= set(AKHIRAN_CSV):
-        raise ValueError("Jenis berkas belum didukung. Pilih berkas CSV/TSV saja, atau Parquet saja.")
+        raise ValueError("Jenis berkas belum didukung. Satu tabel berisi berkas CSV/TSV saja, atau Parquet saja.")
+    return jalur, parquet
+
+
+def _pembaca(jalur, parquet):
+    return ("read_parquet(%s, union_by_name = true)" if parquet else "read_csv(%s, union_by_name = true, sample_size = 50000)") % _daftar(jalur)
+
+
+def intip(berkas):
+    """Kolom tiap berkas TANPA memuat isinya (untuk mengelompokkan berkas dan menyusun JOIN)."""
+    if not isinstance(berkas, list) or not berkas or len(berkas) > BERKAS_MAKS:
+        raise ValueError("Pilih satu sampai %d berkas data." % BERKAS_MAKS)
+    hasil = []
+    con = duckdb.connect(":memory:")
+    try:
+        con.execute("SET autoinstall_known_extensions = false")
+        con.execute("SET autoload_known_extensions = false")
+        for b in berkas:
+            jalur, parquet = _jalur_sah([b])
+            kolom = [{"nama": r[0], "tipe": r[1]} for r in con.execute("DESCRIBE SELECT * FROM " + _pembaca(jalur, parquet)).fetchall()]
+            hasil.append({"berkas": b, "kolom": kolom})
+    finally:
+        con.close()
+    return {"berkas": hasil}
+
+
+def buka(berkas, tabel=None, gabung=None):
+    """Muat berkas data sebagai ``sumber`` lalu kunci akses ke luar.
+
+    Bentuk sederhana: ``berkas`` = daftar berkas berskema sama (ditumpuk). Bentuk bertabel:
+    ``tabel`` = [{"nama", "berkas": [...]}] (tabel pertama = dasar) dan ``gabung`` =
+    [{"kiri", "kolomKiri", "kanan", "kolomKanan", "jenis"}]; hasil JOIN-nya menjadi ``sumber``.
+    """
+    global _con
+    if tabel is None:
+        tabel = [{"nama": "t0", "berkas": berkas}]
+    if not isinstance(tabel, list) or not tabel or len(tabel) > TABEL_MAKS:
+        raise ValueError("Pilih satu sampai %d tabel." % TABEL_MAKS)
+    daftar = []
+    for t in tabel:
+        if not isinstance(t, dict) or not isinstance(t.get("nama"), str) or not NAMA_TABEL.match(t["nama"]) or t["nama"] == "sumber":
+            raise ValueError("Nama tabel tidak sah.")
+        if t["nama"] in {d[0] for d in daftar}:
+            raise ValueError("Nama tabel kembar: %s" % t["nama"])
+        jalur, parquet = _jalur_sah(t.get("berkas"))
+        daftar.append((t["nama"], jalur, parquet))
+    if sum(len(d[1]) for d in daftar) > BERKAS_MAKS:
+        raise ValueError("Terlalu banyak berkas (paling banyak %d)." % BERKAS_MAKS)
     _tutup()
     for sisa in os.listdir(_sementara):
         try:
@@ -90,19 +149,69 @@ def buka(berkas):
     con.execute("SET autoinstall_known_extensions = false")
     con.execute("SET autoload_known_extensions = false")
     con.execute("SET temp_directory = ?", [os.path.join(_sementara, "tmp")])
-    if parquet:
-        # Parquet dibaca di tempat (view): cepat dan tidak digandakan.
-        con.execute("CREATE VIEW sumber AS SELECT * FROM read_parquet(%s, union_by_name = true)" % _daftar(jalur))
-        con.execute("SET allowed_paths = %s" % _daftar(jalur))
-    else:
-        # CSV disalin sekali ke tabel kolumnar; kueri berikutnya tidak membaca ulang teksnya.
-        con.execute("CREATE TABLE sumber AS SELECT * FROM read_csv(%s, union_by_name = true, sample_size = 50000)" % _daftar(jalur))
-    con.execute("SET allowed_directories = %s" % _daftar([_sementara]))
-    con.execute("SET enable_external_access = false")
-    con.execute("SET lock_configuration = true")
+    try:
+        kolom_tabel = {}
+        for nama, jalur, parquet in daftar:
+            # Parquet dibaca di tempat (view); CSV disalin sekali ke tabel kolumnar.
+            con.execute("CREATE %s %s AS SELECT * FROM %s" % ("VIEW" if parquet else "TABLE", _qi(nama), _pembaca(jalur, parquet)))
+            kolom_tabel[nama] = [{"nama": r[0], "tipe": r[1]} for r in con.execute("DESCRIBE " + _qi(nama)).fetchall()]
+        con.execute("CREATE VIEW sumber AS " + _sql_gabung(daftar, kolom_tabel, gabung or []))
+        parket = [j for _, jalur, parquet in daftar if parquet for j in jalur]
+        if parket:
+            con.execute("SET allowed_paths = %s" % _daftar(parket))
+        con.execute("SET allowed_directories = %s" % _daftar([_sementara]))
+        con.execute("SET enable_external_access = false")
+        con.execute("SET lock_configuration = true")
+        kolom = [{"nama": r[0], "tipe": r[1]} for r in con.execute("DESCRIBE sumber").fetchall()]
+        # JOIN dapat menggandakan baris (kunci kanan tidak unik): cacahnya dilaporkan agar pengguna diberi tahu.
+        baris = None
+        if len(daftar) > 1:
+            baris = {"dasar": con.execute("SELECT count(*) FROM " + _qi(daftar[0][0])).fetchone()[0], "sumber": con.execute("SELECT count(*) FROM sumber").fetchone()[0]}
+    except Exception:
+        con.close()
+        raise
     _con = con
-    kolom = [{"nama": r[0], "tipe": r[1]} for r in con.execute("DESCRIBE sumber").fetchall()]
-    return {"kolom": kolom, "disalin": not parquet}
+    return {"kolom": kolom, "baris": baris, "tabel": [{"nama": n, "kolom": kolom_tabel[n]} for n, _, _ in daftar], "disalin": not all(p for _, _, p in daftar)}
+
+
+def _sql_gabung(daftar, kolom_tabel, gabung):
+    """SELECT yang menjadi ``sumber``: tabel dasar, lalu tiap tabel lain dihubungkan dengan JOIN.
+
+    Nama kolom yang sudah ada diberi akhiran ``_<tabel>``; kolom kunci di sisi kanan yang
+    namanya sama dengan kunci kirinya tidak diulang.
+    """
+    dasar = daftar[0][0]
+    if len(daftar) == 1:
+        return "SELECT * FROM " + _qi(dasar)
+    if not isinstance(gabung, list) or len(gabung) != len(daftar) - 1:
+        raise ValueError("Setiap tabel tambahan harus dihubungkan tepat satu kali.")
+    ada = {dasar}
+    pakai = set()
+    pilih = []
+    for k in kolom_tabel[dasar]:
+        pilih.append("%s.%s AS %s" % (_qi(dasar), _qi(k["nama"]), _qi(k["nama"])))
+        pakai.add(k["nama"].lower())
+    klausa = []
+    for g in gabung:
+        if not isinstance(g, dict):
+            raise ValueError("Hubungan tabel tidak sah.")
+        kiri, kanan, kk, kn = g.get("kiri"), g.get("kanan"), g.get("kolomKiri"), g.get("kolomKanan")
+        jenis = JENIS_GABUNG.get(g.get("jenis", "left"))
+        if kiri not in ada or kanan not in kolom_tabel or kanan in ada or jenis is None:
+            raise ValueError("Hubungan tabel tidak sah: tabel kiri harus sudah terhubung dan tabel kanan belum.")
+        if kk not in {c["nama"] for c in kolom_tabel[kiri]} or kn not in {c["nama"] for c in kolom_tabel[kanan]}:
+            raise ValueError("Kolom penghubung tidak ada di tabelnya.")
+        klausa.append("%s %s ON %s.%s = %s.%s" % (jenis, _qi(kanan), _qi(kiri), _qi(kk), _qi(kanan), _qi(kn)))
+        for k in kolom_tabel[kanan]:
+            if k["nama"] == kn and kn.lower() == kk.lower():
+                continue
+            alias = k["nama"] if k["nama"].lower() not in pakai else "%s_%s" % (k["nama"], kanan)
+            while alias.lower() in pakai:
+                alias += "_"
+            pakai.add(alias.lower())
+            pilih.append("%s.%s AS %s" % (_qi(kanan), _qi(k["nama"]), _qi(alias)))
+        ada.add(kanan)
+    return "SELECT " + ", ".join(pilih) + " FROM " + _qi(dasar) + " " + " ".join(klausa)
 
 
 def _daftar(jalur):
@@ -137,7 +246,9 @@ def main() -> int:
                 id_ = p.get("id")
                 op = p.get("op")
                 if op == "buka":
-                    jawab = buka(p.get("berkas"))
+                    jawab = buka(p.get("berkas"), p.get("tabel"), p.get("gabung"))
+                elif op == "intip":
+                    jawab = intip(p.get("berkas"))
                 elif op == "kueri":
                     jawab = kueri(p.get("sql"), p.get("maks"))
                 elif op == "tutup":

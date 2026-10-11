@@ -1456,6 +1456,8 @@ try {
 					// Viz mandiri: tanpa persetujuan memasang mesin DuckDB, tidak ada yang dipasang dan dasbor yang terbuka tidak diganti.
 					assert.equal(v.dataTanpaMesin, 'tanpa_mesin');
 					assert.equal(v.sesudahData, 'tabel');
+					assert.equal(v.folderTanpaMesin, 'tanpa_mesin');
+					assert.equal(v.aturBukanBerkas, 'ditolak');
 					assert.equal(v.bukanSatu, 'bukan_satu');
 					assert.equal(v.dariTabel, 'viz');
 					assert.deepEqual(v.tab, ['DSWorkbench Viz']);
