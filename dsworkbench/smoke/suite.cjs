@@ -218,6 +218,16 @@ async function run() {
     const daftarTugas = await api.uji.daftarTugas();
     hasil["tugas"] = daftarTugas;
     hasil["checkpoint"] = await api.uji.checkpoint(env2["DSW_COURSE"], env2["DSW_MODUL2"], true);
+    const kumpulAwal = await api.uji.kumpulkan(daftarTugas[0]);
+    const jw = api.uji.jawaban;
+    const terbuka = await jw.buka(daftarTugas[0]);
+    const tabJawaban = () => vscode.window.tabGroups.all.flatMap((g) => g.tabs).find((tab) => tab.input instanceof vscode.TabInputWebview && tab.input.viewType.includes("dsworkbench.jawaban"));
+    await sampai(() => tabJawaban()?.label === jw.keadaan()?.judul, 1e4, "").catch(() => void 0);
+    const awal = jw.keadaan();
+    await jw.pesan({ tindakan: "simpan", jawaban: ["x", "y"], attemptId: "att-lain" });
+    await jw.pesan({ tindakan: "simpan", jawaban: ["Jawaban soal pertama dari aplikasi.", "Jawaban soal kedua dari aplikasi."], otomatis: true });
+    hasil["jawaban"] = { kumpulAwal: kumpulAwal.hasil, terbuka, judul: awal?.judul, html: awal?.html, isiAwal: awal?.isi, isiAkhir: jw.keadaan()?.isi, tab: tabJawaban()?.label };
+    jw.tutup();
     hasil["kumpul"] = await api.uji.kumpulkan(daftarTugas[0]);
     hasil["sqlTanpaLayanan"] = await api.uji.sql(env2["DSW_COURSE"], "sql.execute", { alias: "dw", database: "nusamart_dw", sql: "select 1", maxRows: 10 });
     if (api.uji.gudang && env2["DSW_COURSE_PGD"] && env2["DSW_MODUL_PGD"]) {
@@ -238,7 +248,7 @@ async function run() {
       await sampai(() => g.keadaan().pesanPanel >= 1, 2e4, "").catch(() => void 0);
       await sampai(() => g.keadaan().model?.dataset.jenis === "ada" && g.keadaan().model?.layanan.jenis === "siap", 2e4, "").catch(() => void 0);
       const tab = vscode.window.tabGroups.all.flatMap((x) => x.tabs).find((t) => t.input instanceof vscode.TabInputWebview && t.input.viewType.includes("dsworkbench.gudang"));
-      const awal = potret();
+      const awal2 = potret();
       const html = g.keadaan().html;
       const muatSebelumSiap = await g.pesan({ tindakan: "muat-dataset" });
       const langkahCek = () => /class="langkah langkah--([a-z]+)"/.exec(g.keadaan().bagian?.["b-cek"] ?? "")?.[1];
@@ -297,7 +307,7 @@ async function run() {
       const modulTerkunci = { hasil: hasilModul, terpilih: g.keadaan().model?.modul[g.keadaan().model?.modulTerpilih ?? -1]?.id };
       const hasilLain = await g.pesan({ tindakan: "pilih-modul", indeks: 2 });
       const modulLain = { hasil: hasilLain, dataset: g.keadaan().bagian?.["b-dataset"] ?? "", cek: g.keadaan().bagian?.["b-cek"] ?? "" };
-      hasil["gudang"] = { cek, modulLain, berlayanan, bukanLayanan, tab: tab?.label, pesanPanel: g.keadaan().pesanPanel, siapPanel: g.keadaan().siapPanel, html, awal, muatSebelumSiap, nyalakan, menyala, siapkan, setelahSiapkan, muat, setelahMuat, pilihSkema, saring, bukaBerkas, bukaBerkasBelumAda, ditolak, modulTerkunci };
+      hasil["gudang"] = { cek, modulLain, berlayanan, bukanLayanan, tab: tab?.label, pesanPanel: g.keadaan().pesanPanel, siapPanel: g.keadaan().siapPanel, html, awal: awal2, muatSebelumSiap, nyalakan, menyala, siapkan, setelahSiapkan, muat, setelahMuat, pilihSkema, saring, bukaBerkas, bukaBerkasBelumAda, ditolak, modulTerkunci };
       if (api.uji.studio) {
         const s = api.uji.studio;
         await s.buka(C);
@@ -419,7 +429,7 @@ async function run() {
         const b = api.uji.lingkungan().barisStatus?.find((x) => x.id === "github");
         return b && { keterangan: b.keterangan, konteks: b.konteks };
       };
-      const awal = { ...await gh.keadaan(true), baris: baris() };
+      const awal2 = { ...await gh.keadaan(true), baris: baris() };
       const taut = await gh.tautkan();
       const tertaut = { ...await gh.keadaan(), baris: baris() };
       const hasilPutus = await gh.putuskan();
@@ -427,7 +437,7 @@ async function run() {
       const ditolak = await gh.tautkan();
       const batal = await gh.tautkan({ batalSetelahKode: true });
       await tidur(2500);
-      hasil["github"] = { awal, taut, tertaut, putus, ditolak, batal, akhir: await gh.keadaan(true) };
+      hasil["github"] = { awal: awal2, taut, tertaut, putus, ditolak, batal, akhir: await gh.keadaan(true) };
       hasil["lingkungan"] = api.uji.lingkungan();
     }
     if (api.uji.rahasia) hasil["rahasia"] = await api.uji.rahasia();
@@ -438,18 +448,18 @@ async function run() {
       await sampai(() => s.keadaan().pesanPanel >= 1, 2e4, "").catch(() => void 0);
       await sampai(() => s.keadaan().keadaan.keadaan === "siap" && s.keadaan().keadaan.online.length > 0, 2e4, "").catch(() => void 0);
       await sampai(() => Boolean(s.keadaan().keadaan.online[0]?.avatar.uri), 1e4, "").catch(() => void 0);
-      const awal = s.keadaan();
+      const awal2 = s.keadaan();
       const buka = await s.pesan({ tindakan: "buka", id: "usr-rani" });
       const kirim = await s.pesan({ tindakan: "kirim", id: "usr-rani", teks: "Halo dari IDE" });
       await sampai(() => s.keadaan().lencana === 1, 15e3, "").catch(() => void 0);
       hasil["sosial"] = {
         perintahFokus: (await vscode.commands.getCommands(true)).includes("dsworkbench.sosial.focus"),
-        html: awal.html,
-        tampak: awal.tampak,
+        html: awal2.html,
+        tampak: awal2.tampak,
         pesanPanel: s.keadaan().pesanPanel,
-        sebelum: { keadaan: awal.keadaan.keadaan, online: awal.keadaan.online, offline: awal.keadaan.offline, lencana: awal.lencana },
-        avatarRani: awal.keadaan.online[0]?.avatar.uri,
-        akarSkema: awal.akarSkema,
+        sebelum: { keadaan: awal2.keadaan.keadaan, online: awal2.keadaan.online, offline: awal2.keadaan.offline, lencana: awal2.lencana },
+        avatarRani: awal2.keadaan.online[0]?.avatar.uri,
+        akarSkema: awal2.akarSkema,
         buka,
         kirim,
         sesudah: s.keadaan(),
@@ -468,7 +478,7 @@ async function run() {
       await s.fokus();
       const kerangka = () => /<body data-animasi="([A-Za-z]+)">/.exec(s.keadaan().html)?.[1];
       const html = s.keadaan().html;
-      const awal = { ...s.keadaan().animasi, kerangka: kerangka() };
+      const awal2 = { ...s.keadaan().animasi, kerangka: kerangka() };
       const ubah = async (nilai) => {
         await c.update("social.animations", nilai, G);
         await sampai(() => s.keadaan().animasi.terkirim === (nilai ?? "selalu"), 1e4, "").catch(() => void 0);
@@ -478,7 +488,7 @@ async function run() {
       const ikuti = await ubah("ikutiSistem");
       const akhir = await ubah(void 0);
       hasil["animasi"] = {
-        awal,
+        awal: awal2,
         mati,
         ikuti,
         akhir,
@@ -495,7 +505,7 @@ async function run() {
       const su = api.uji.suara;
       const c = vscode.workspace.getConfiguration("dsworkbench");
       const G = vscode.ConfigurationTarget.Global;
-      const awal = su.pengaturan();
+      const awal2 = su.pengaturan();
       const terkirim = su.terkirim();
       await c.update("sound.enabled", false, G);
       const mati = su.pengaturan();
@@ -506,12 +516,12 @@ async function run() {
       const nyala = su.pengaturan();
       await c.update("sound.enabled", void 0, G);
       await c.update("sound.volume", void 0, G);
-      hasil["suara"] = { awal, terkirim, mati, klikMati, terkirimMati, nyala, akhir: su.pengaturan(), htmlSosial: api.uji.sosial.keadaan().html };
+      hasil["suara"] = { awal: awal2, terkirim, mati, klikMati, terkirimMati, nyala, akhir: su.pengaturan(), htmlSosial: api.uji.sosial.keadaan().html };
     }
     if (api.uji.menulis && env2["DSW_LUAR"]) {
       const mn = api.uji.menulis;
       const luar2 = env2["DSW_LUAR"];
-      const awal = mn.keadaan().keadaan;
+      const awal2 = mn.keadaan().keadaan;
       const utama = await mn.buat("ta-sains-data", luar2, "Tugas Akhir Uji");
       const editorAktif = vscode.window.activeTextEditor?.document.uri.fsPath;
       const timpa = await mn.buat("artikel", luar2, "Tugas Akhir Uji").then(
@@ -534,12 +544,12 @@ async function run() {
       const ditolak = [await mn.pesan({ tindakan: "kompilasi", berkas: "/etc/passwd" }), await mn.pesan({ tindakan: "buka-proyek", indeks: 99 }), await mn.pesan({ tindakan: "jalankan", perintah: "rm -rf" })];
       const segarkan = await mn.pesan({ tindakan: "segarkan" });
       const k = mn.keadaan();
-      hasil["menulis"] = { awal, templat: mn.templat(), utama, editorAktif, timpa, pdfTanpaKompilasi, teksZip, teksMd, teksPdf, ditolak, segarkan, aktif: k.keadaan.aktif, proyek: k.keadaan.proyek, panel: { terpasang: k.terpasang, html: k.html } };
+      hasil["menulis"] = { awal: awal2, templat: mn.templat(), utama, editorAktif, timpa, pdfTanpaKompilasi, teksZip, teksMd, teksPdf, ditolak, segarkan, aktif: k.keadaan.aktif, proyek: k.keadaan.proyek, panel: { terpasang: k.terpasang, html: k.html } };
     }
     if (api.uji.berkas) {
       const bk = api.uji.berkas;
       const ws = env2["DSW_WS_COURSE"];
-      const awal = await bk.muat();
+      const awal2 = await bk.muat();
       fs.writeFileSync(path.join(ws, "catatan-rumah.csv"), "nim,nilai\n122450001,90\n");
       fs.mkdirSync(path.join(ws, "dataset-kecil", "sub"), { recursive: true });
       fs.writeFileSync(path.join(ws, "dataset-kecil", "a.csv"), "a\n1\n");
@@ -558,7 +568,7 @@ async function run() {
       const ditolak = [await bk.pesan({ tindakan: "impor", indeks: 0, id: "awal-1" }), await bk.pesan({ tindakan: "impor", indeks: 999 }), await bk.pesan({ tindakan: "hapus", indeks: 0 })];
       await sampai(() => bk.keadaan().html.includes('data-tindakan="impor"'), 15e3, "daftar Berkas saya tidak tampil di panel");
       const k = bk.keadaan();
-      hasil["berkasSaya"] = { awal, simpan, setelah, imporNama, imporLagi, imporJebakan, imporZip, ditolak, panel: { terpasang: k.terpasang, html: k.html } };
+      hasil["berkasSaya"] = { awal: awal2, simpan, setelah, imporNama, imporLagi, imporJebakan, imporZip, ditolak, panel: { terpasang: k.terpasang, html: k.html } };
     }
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
     await tidur(1500);

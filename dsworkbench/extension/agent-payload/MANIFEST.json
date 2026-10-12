@@ -1,7 +1,7 @@
 {
 	"schema": 1,
 	"agentVersion": "0.4.11",
-	"commit": "2b6ab8366e327dc679f4daae8ec323fda7777891",
+	"commit": "c890b42c904b2116e2911403d3bf806dd9ec460d",
 	"dirty": false,
 	"source": "agent/local-runner + packages/{jupyter,checkpoint,workspace,datasets} (daftar: agent_package.build_zip)",
 	"fileCount": 190,

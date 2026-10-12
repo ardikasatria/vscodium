@@ -3,7 +3,7 @@
   "displayName": "DSWorkbench",
   "icon": "media/ikon.png",
   "description": "Kelas, naskah modul, notebook, tugas, checkpoint, SQL, Studio Data, DSWorkbench Viz, terminal praktikum, asisten belajar Bravais, alat bantu menulis LaTeX, dan Berkas saya untuk Sains Data ITERA, dijalankan di komputer Anda lewat Local Runner.",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "publisher": "sditera",
   "private": true,
   "license": "UNLICENSED",
@@ -295,6 +295,13 @@
         "title": "Tampilkan hasil checkpoint",
         "category": "DSWorkbench",
         "icon": "$(output)"
+      },
+      {
+        "command": "dsworkbench.answerTask",
+        "title": "Jawab soal analisis tugas",
+        "category": "DSWorkbench",
+        "icon": "$(comment)",
+        "enablement": "dsworkbench.masuk"
       },
       {
         "command": "dsworkbench.submitTask",
@@ -703,6 +710,10 @@
           "when": "dsworkbench.masuk"
         },
         {
+          "command": "dsworkbench.answerTask",
+          "when": "dsworkbench.masuk"
+        },
+        {
           "command": "dsworkbench.openTaskInWeb",
           "when": "dsworkbench.masuk"
         },
@@ -984,6 +995,11 @@
           "command": "dsworkbench.submitTask",
           "when": "view == dsworkbench.tugas && viewItem =~ /^tugas(Sql)?$/",
           "group": "1_tugas@3"
+        },
+        {
+          "command": "dsworkbench.answerTask",
+          "when": "view == dsworkbench.tugas && viewItem =~ /^tugas(Sql)?$/",
+          "group": "1_tugas@4"
         },
         {
           "command": "dsworkbench.openTaskInWeb",

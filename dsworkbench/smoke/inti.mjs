@@ -257,6 +257,13 @@ const publikArsip = (id, o) => ({ id, displayFilename: o.nama, contentType: o.ti
 const relayHasil = new Map();
 let gitDiperiksa = false;
 const lampiran = [];
+// Soal analisis tugas Modul 2 dan jawaban di drafnya (diisi dari jendela "Soal analisis").
+const SOAL_ANALISIS = [
+	{ id: 'q2', order: 2, minChars: 20, prompt: 'Mengapa hasilnya demikian?' },
+	{ id: 'q1', order: 1, minChars: 20, prompt: 'Apa temuan utama <Anda>?' },
+];
+const jawabanDraf = {};
+let drafAda = false;
 
 // PYTHONPATH seperti scripts/run-tests.sh: src semua paket.
 const pypath = [];
@@ -439,11 +446,19 @@ const server = http.createServer((req, res) => {
 			});
 		}
 		if (kunci === `GET ${modul2}/assignments`) {
-			return jawab(200, { assignments: [{ id: 'a-m02', courseId: COURSE, moduleId: MODUL2, title: 'Tugas Modul 2', requiredArtifacts: [{ name: 'M02_NIM.ipynb', label: 'Notebook', contentTypes: ['application/x-ipynb+json'] }, { name: 'catatan.md', label: 'Catatan', contentTypes: ['text/markdown'] }], analysisQuestions: [] }], submission: { manualUpload: false } });
+			return jawab(200, { assignments: [{ id: 'a-m02', courseId: COURSE, moduleId: MODUL2, title: 'Tugas Modul 2', requiredArtifacts: [{ name: 'M02_NIM.ipynb', label: 'Notebook', contentTypes: ['application/x-ipynb+json'] }, { name: 'catatan.md', label: 'Catatan', contentTypes: ['text/markdown'] }], analysisQuestions: SOAL_ANALISIS }], submission: { manualUpload: false } });
 		}
 		const percobaan = `/api/courses/${COURSE}/assignments/a-m02/attempts`;
-		if (kunci === `GET ${percobaan}`) return jawab(200, { attempts: [] });
-		if (kunci === `POST ${percobaan}`) return jawab(201, { attempt: { id: 'att-uji', assignmentId: 'a-m02', status: 'draft', artifacts: [], answers: {} } });
+		const draf = () => ({ id: 'att-uji', assignmentId: 'a-m02', status: 'draft', artifacts: [], answers: { ...jawabanDraf } });
+		if (kunci === `GET ${percobaan}`) return jawab(200, { attempts: drafAda ? [draf()] : [] });
+		if (kunci === `POST ${percobaan}`) {
+			drafAda = true;
+			return jawab(201, { attempt: draf() });
+		}
+		if (kunci === 'POST /api/attempts/att-uji/answers') {
+			Object.assign(jawabanDraf, badan.answers);
+			return jawab(200, { attempt: draf() });
+		}
 		// -- Berkas saya ---------------------------------------------------------------
 		if (kunci === 'GET /api/me/objects') {
 			const objects = [...arsip.entries()].filter(([, o]) => o.data).map(([id, o]) => publikArsip(id, o));
@@ -897,6 +912,18 @@ try {
 		assert.deepEqual(h.checkpoint.hasil.findings.map((f) => f.status), ['LULUS', 'LULUS']);
 	});
 	periksa('kumpul ujung ke ujung: berkas dibaca lewat agent sungguhan, diunggah utuh, gerbang lewat relay, lalu submit', () => {
+		// Soal analisis dijawab di aplikasi: tanpa jawaban, Kumpulkan berhenti sebelum ada yang diunggah.
+		const j = h.jawaban;
+		assert.deepEqual(j.kumpulAwal, { jenis: 'butuh_jawaban', jumlah: 2, kurang: 2 });
+		assert.equal(j.terbuka, true);
+		assert.equal(j.judul, 'Soal analisis · Tugas Modul 2');
+		assert.equal(j.tab, 'Soal analisis · Tugas Modul 2', 'jendela Soal analisis adalah tab editor');
+		assert.deepEqual(j.isiAwal, { drafId: 'att-uji', teks: ['', ''], terkunci: false, dariKiriman: false });
+		assert.ok(j.html.includes('Apa temuan utama &lt;Anda&gt;?') && !j.html.includes('<Anda>'), 'soal di-escape');
+		assert.ok(/connect-src 'none'/.test(j.html) && /default-src 'none'/.test(j.html), 'CSP panel ketat');
+		assert.deepEqual(j.isiAkhir.teks, ['Jawaban soal pertama dari aplikasi.', 'Jawaban soal kedua dari aplikasi.']);
+		assert.deepEqual(jawabanDraf, { q1: 'Jawaban soal pertama dari aplikasi.', q2: 'Jawaban soal kedua dari aplikasi.' }, 'tersimpan di draf server; pesan berkunci asing ditolak');
+		assert.equal(permintaan.filter((x) => x.jalur === '/api/attempts/att-uji/answers').length, 1);
 		assert.equal(h.kumpul.hasil.jenis, 'terkumpul', JSON.stringify(h.kumpul.hasil));
 		assert.equal(h.kumpul.hasil.resi.id, 'rcpt-uji');
 		const berkas = [
