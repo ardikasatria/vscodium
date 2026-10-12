@@ -1,11 +1,11 @@
 {
 	"schema": 1,
 	"agentVersion": "0.4.10",
-	"commit": "a8dc2ec8203eea783a7bc335fef37b513082076b",
+	"commit": "cc44a5156c332ba96121f26bcb5999d3d9e4d9bd",
 	"dirty": false,
 	"source": "agent/local-runner + packages/{jupyter,checkpoint,workspace,datasets} (daftar: agent_package.build_zip)",
 	"fileCount": 190,
-	"totalBytes": 4622091,
+	"totalBytes": 4625801,
 	"files": [
 		{
 			"path": "assets/workbench-agent.icns",
@@ -134,13 +134,13 @@
 		},
 		{
 			"path": "src/workbench_agent/local_ops.py",
-			"size": 11477,
-			"sha256": "274641fabda276870f8e79e34beda16636e3422ae4f51d4c4631616c454319cd"
+			"size": 12029,
+			"sha256": "a77d4e6b4260db2b1e9abb50d994489a4ab48d68d4eccf2fd7bdb77aeae17fde"
 		},
 		{
 			"path": "src/workbench_agent/operations.py",
-			"size": 86401,
-			"sha256": "6c9116355484d59be73ec00ea9914e7b4c3826d64a4790d3bdbe6b3dc446376e"
+			"size": 89559,
+			"sha256": "996b083b3a2d1856dfd35ecf8131e420061512a7931e928815b3dcdb82901640"
 		},
 		{
 			"path": "src/workbench_agent/pgservice.py",

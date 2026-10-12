@@ -15,10 +15,12 @@ from __future__ import annotations
 import base64
 import binascii
 import hashlib
+import os
 import re
 import threading
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from typing import Any, Callable, Mapping, Protocol
 
 from .config import AGENT_VERSION
@@ -261,6 +263,10 @@ def _datasets_tersedia() -> bool:
 #: Folder kerja, token GitHub, dan basis data dipisah per akun Workbench (0.4.9).
 CAPABILITY_WORKSPACE_ACCOUNT = "workspace.account.v1"
 
+#: Pindah tata letak ``flat`` -> ``per-course``: entri lama di akar workspace
+#: (``payload.workspace.legacy``) dipindahkan ke folder mata kuliah (ADR-050 §9).
+CAPABILITY_WORKSPACE_MIGRATE = "workspace.migrate.v1"
+
 #: Kemampuan git lokal (GH-01): operasi ``git.*`` tanpa jaringan.
 CAPABILITY_GIT = "git.v1"
 #: ``git.merge`` (0.4.7): UI hanya menawarkan Gabungkan bila agent melaporkannya.
@@ -365,6 +371,32 @@ def course_root_of(payload: Mapping[str, Any]) -> str | None:
     if not isinstance(cid, str) or not _POLA_COURSE_ID.fullmatch(cid):
         raise OperationRejectedError("courseId workspace harus slug mata kuliah.")
     return cid
+
+
+#: Entri lama di akar workspace: satu komponen nama, tidak pernah path.
+_POLA_ENTRI_LAMA = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+_MAKS_ENTRI_LAMA = 64
+
+
+def legacy_root_of(payload: Mapping[str, Any]) -> tuple[str, ...]:
+    """Entri akar workspace milik mata kuliah ini semasa bertata letak ``flat``.
+
+    Dari ``payload.workspace.legacy`` (package lewat Control API). Butir yang
+    bukan nama tunggal diabaikan, sehingga daftar ini tidak dapat menunjuk ke
+    luar akar workspace maupun ke dalam folder lain.
+    """
+    ws = payload.get("workspace")
+    daftar = ws.get("legacy") if isinstance(ws, Mapping) else None
+    if not isinstance(daftar, (list, tuple)):
+        return ()
+    cid = ws.get("courseId")
+    hasil: list[str] = []
+    for nama in daftar[:_MAKS_ENTRI_LAMA]:
+        if isinstance(nama, str) and _POLA_ENTRI_LAMA.fullmatch(nama) \
+                and nama != cid and nama not in hasil:
+            hasil.append(nama)
+    return tuple(hasil)
+
 
 _JUPYTER_OPS = frozenset({
     KnownOperation.JUPYTER_KERNEL_START,
@@ -614,11 +646,47 @@ class WorkspaceRoots:
             f = self._per_course.get(cid)
             if f is None:
                 self.root.mkdir(cid)
+                # Sebelum operasi pertama menyentuh akar mata kuliah, supaya
+                # starter tidak disalin ulang di samping pekerjaan lama.
+                self._pindahkan(cid, legacy_root_of(payload))
                 r = self.root.resolver
                 f = WorkspaceFiles(PathResolver(r.root / cid, read_only=r.read_only_policy,
                                                 limits=r.limits))
                 self._per_course[cid] = f
             return f
+
+    def migrate(self, payload: Mapping[str, Any]) -> dict[str, list[str]]:
+        """Pindahkan entri lama di akar ke folder mata kuliah (ADR-050 §9).
+
+        Idempoten dan tidak pernah menimpa: entri yang tujuannya sudah ada atau
+        yang gagal dipindahkan (mis. berkasnya sedang terbuka) tetap di akar dan
+        dilaporkan di ``notMigrated``; panggilan berikutnya mencobanya lagi.
+        """
+        cid = course_root_of(payload)
+        if cid is None:
+            return {"migrated": [], "notMigrated": []}
+        with self._kunci:
+            self.root.mkdir(cid)
+            return self._pindahkan(cid, legacy_root_of(payload))
+
+    def _pindahkan(self, cid: str, daftar: tuple[str, ...]) -> dict[str, list[str]]:
+        akar = Path(self.root.resolver.root)
+        pindah: list[str] = []
+        tinggal: list[str] = []
+        for nama in daftar:
+            asal, tujuan = akar / nama, akar / cid / nama
+            if not os.path.lexists(asal):
+                continue
+            if asal.is_symlink() or os.path.lexists(tujuan):
+                tinggal.append(nama)
+                continue
+            try:
+                os.rename(asal, tujuan)
+            except OSError:
+                tinggal.append(nama)
+            else:
+                pindah.append(nama)
+        return {"migrated": pindah, "notMigrated": tinggal}
 
 
 def _workspace_handlers(
@@ -821,11 +889,13 @@ def _workspace_handlers(
                 {"root": ".", "created": False, "layout": "flat"}, akar_files))
         baru = not akar_files.exists(cid)
         try:
+            pindah = roots.migrate(payload)
             files = _akar(payload)
-        except WorkspaceError as exc:
+        except (WorkspaceError, OSError) as exc:
             return HandlerResult(status="failed", payload={}, detail=str(exc))
         return HandlerResult(status="ok", payload=_dengan_jalur(
-            {"root": cid, "created": baru, "layout": "per-course"}, files))
+            {"root": cid, "created": baru, "layout": "per-course",
+             **(pindah if legacy_root_of(payload) else {})}, files))
 
     def _gagal_unggah(exc: UploadError) -> HandlerResult:
         return HandlerResult(status="failed", payload={"code": exc.code}, detail=str(exc))
@@ -1875,6 +1945,10 @@ class OperationAllowlist:
         if self.pipa_aktif:
             # ADR-072: agent sedang melayani pipa IDE dan menerima amplop sesi.
             punya.append(CAPABILITY_IDE_STDIO)
+        if self._workspace is not None:
+            # Sengaja terakhir: server sebelum ADR-050 §9 hanya menyimpan 16
+            # kemampuan pertama, dan yang boleh terpotong di sana hanya ini.
+            punya.append(CAPABILITY_WORKSPACE_MIGRATE)
         return punya
 
     def register(self, operation: KnownOperation, handler: OperationHandler) -> None:

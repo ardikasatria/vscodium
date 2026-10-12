@@ -165,6 +165,19 @@ def _waktu_iso(nilai: Any, nama: str) -> float:
     return t.timestamp()
 
 
+def _workspace_amplop(ws: Mapping[str, Any], cid: str) -> dict[str, Any]:
+    """``{layout, courseId}`` + ``legacy`` (entri akar lama, ADR-050 §9) bila ada.
+
+    Isi ``legacy`` disaring lagi di ``operations.legacy_root_of``; di sini hanya
+    bentuknya yang dijaga agar amplop tidak membawa struktur sembarang.
+    """
+    hasil: dict[str, Any] = {"layout": ws["layout"], "courseId": cid}
+    lama = ws.get("legacy")
+    if isinstance(lama, list) and len(lama) <= 64 and all(isinstance(n, str) for n in lama):
+        hasil["legacy"] = list(lama)
+    return hasil
+
+
 @dataclass(frozen=True)
 class Amplop:
     """Satu amplop sesi yang sudah divalidasi."""
@@ -246,7 +259,7 @@ class PenyimpanAmplop:
             raise AmplopTidakSah("Masa berlaku amplop tidak sah.")
         amplop = Amplop(
             envelope_id=eid, course_id=cid,
-            workspace={"layout": ws["layout"], "courseId": cid},
+            workspace=_workspace_amplop(ws, cid),
             services=copy.deepcopy(dict(services)) if services is not None else None,
             # Kelas B di dalam ``ops`` diabaikan: amplop tidak dapat memperluas kelas A.
             ops=frozenset(o for o in ops if o in _LOCAL),
