@@ -1,7 +1,7 @@
 {
 	"schema": 1,
-	"agentVersion": "0.4.10",
-	"commit": "cc44a5156c332ba96121f26bcb5999d3d9e4d9bd",
+	"agentVersion": "0.4.11",
+	"commit": "2b6ab8366e327dc679f4daae8ec323fda7777891",
 	"dirty": false,
 	"source": "agent/local-runner + packages/{jupyter,checkpoint,workspace,datasets} (daftar: agent_package.build_zip)",
 	"fileCount": 190,
@@ -90,7 +90,7 @@
 		{
 			"path": "src/workbench_agent/config.py",
 			"size": 2776,
-			"sha256": "53f2594215d6c702890e84507a696641727febdb7dddfc401451f48a7862be10"
+			"sha256": "b569295c8891eebe4e8a373609990c348e7e9dc51c193efd3c0387bc819be525"
 		},
 		{
 			"path": "src/workbench_agent/datasets_op.py",

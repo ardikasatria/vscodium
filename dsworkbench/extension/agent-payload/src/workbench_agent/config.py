@@ -18,7 +18,7 @@ from pathlib import Path
 # (tabel pandas, plot) seperti Jupyter.
 # 0.3.0: rilis pertama aplikasi desktop Data Science Workbench (installer +
 # dsw-updater, Prompt 12). Versi ini sama dengan tag rilis dan versi web.
-AGENT_VERSION = "0.4.10"
+AGENT_VERSION = "0.4.11"
 
 
 def default_state_dir() -> Path:
