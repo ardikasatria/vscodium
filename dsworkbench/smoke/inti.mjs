@@ -292,6 +292,14 @@ const perintahAgent = [PYTHON, harness, ws, catatanAgent, pemicu];
 
 // --- server HTTP palsu (Control API) ---------------------------------------
 const permintaan = [];
+// Portofolio kelompok (0.5.0): s1 bebas, s2 dikunci teman (Citra).
+const dok = {
+	versi: 1,
+	bagian: [
+		{ id: 's1', heading: '1. Kebutuhan', body: '## 1. Kebutuhan\n\nIsi awal.\n', rev: 1, updatedAt: null, updatedBy: null, lock: null },
+		{ id: 's2', heading: '2. Dimensi', body: '## 2. Dimensi\n\nDitulis Citra.\n', rev: 3, updatedAt: '2026-10-14T09:00:00+00:00', updatedBy: { id: 'u-citra', displayName: 'Citra' }, lock: { id: 'u-citra', displayName: 'Citra', expiresAt: '2030-01-01T00:00:00+00:00' } },
+	],
+};
 // Semua operasi kelas A, tetapi amplop TANPA `services` (seperti server dengan flag
 // `services.postgres` mati): operasi SQL harus ditolak agent dengan kode yang jelas.
 const OPS = JSON.parse(fs.readFileSync(OPS_JSON, 'utf8')).ops;
@@ -458,6 +466,49 @@ const server = http.createServer((req, res) => {
 		if (kunci === 'POST /api/attempts/att-uji/answers') {
 			Object.assign(jawabanDraf, badan.answers);
 			return jawab(200, { attempt: draf() });
+		}
+		// -- Portofolio kelompok (0.5.0) ------------------------------------------------
+		{
+			const dasarDok = `/api/me/courses/${COURSE_PGD}/modules/pgd-kasus/group-doc`;
+			const jalurDok = '/api/me/group-docs/gd-uji';
+			const bagianDok = (b) => ({ ...b, lock: b.lock ? { ...b.lock, mine: b.lock.id === 'u-uji' } : null });
+			const keadaanDok = () => ({
+				stamp: `s${dok.versi}`,
+				doc: {
+					id: 'gd-uji', title: 'Kelompok Uji', courseId: COURSE_PGD, moduleId: 'pgd-kasus', kelasId: 'k-pgd', version: dok.versi,
+					updatedAt: '2026-10-14T09:00:00+00:00', role: 'owner', state: 'joined', maxMembers: 5,
+					members: [
+						{ id: 'u-uji', displayName: 'Mahasiswa Uji', role: 'owner', state: 'joined', online: true },
+						{ id: 'u-citra', displayName: 'Citra', role: 'member', state: 'joined', online: true },
+					],
+					sections: dok.bagian.map(bagianDok),
+				},
+				invitations: [],
+				candidates: [{ id: 'u-dewi', displayName: 'Dewi' }],
+			});
+			if (kunci === `GET ${dasarDok}` || kunci.startsWith(`GET ${dasarDok}?v=`)) {
+				const v = new URL(req.url, 'http://x').searchParams.get('v');
+				return v === `s${dok.versi}` ? jawab(200, { unchanged: true }) : jawab(200, keadaanDok());
+			}
+			let md;
+			if ((md = new RegExp(`^POST ${jalurDok}/sections/(s[12])/(lock|unlock)$`).exec(kunci))) {
+				const b = dok.bagian.find((x) => x.id === md[1]);
+				if (md[2] === 'lock') {
+					if (b.lock && b.lock.id !== 'u-uji') return jawab(409, { error: 'konflik', message: 'Bagian ini sedang disunting Citra.' });
+					b.lock = { id: 'u-uji', displayName: 'Mahasiswa Uji', expiresAt: '2030-01-01T00:00:00+00:00' };
+				} else if (b.lock?.id === 'u-uji') b.lock = null;
+				dok.versi += 1;
+				return jawab(200, { doc: keadaanDok().doc });
+			}
+			if ((md = new RegExp(`^PUT ${jalurDok}/sections/(s[12])$`).exec(kunci))) {
+				const b = dok.bagian.find((x) => x.id === md[1]);
+				if (b.lock?.id !== 'u-uji') return jawab(409, { error: 'konflik', message: 'Kunci bagian tidak dipegang.' });
+				b.body = String(badan.body);
+				b.rev += 1;
+				if (!badan.keepLock) b.lock = null;
+				dok.versi += 1;
+				return jawab(200, { doc: keadaanDok().doc });
+			}
 		}
 		// -- Berkas saya ---------------------------------------------------------------
 		if (kunci === 'GET /api/me/objects') {
@@ -1173,6 +1224,41 @@ try {
 	} else {
 		dilewati.push('Berkas saya: ekstensi yang diuji belum punya kait uji (versi lama)');
 	}
+	if (h.portofolio) {
+		const pf = h.portofolio;
+		const ke = (metode, jalur) => permintaan.filter((p) => p.metode === metode && p.jalur === jalur);
+		periksa('Portofolio kelompok: Sunting = kunci lalu buka berkas dsw-portofolio: Markdown yang dapat disimpan', () => {
+			assert.equal(pf.galat, null);
+			assert.equal(pf.sunting, 'sunting');
+			assert.match(pf.uri, /^dsw-portofolio:\/gd-uji\/s1\/01-1-kebutuhan\.md$/);
+			assert.equal(pf.izin, 0, 'bagian yang kuncinya dipegang tidak baca saja');
+			assert.equal(pf.bahasa, 'markdown');
+			assert.equal(pf.isiAwal, '## 1. Kebutuhan\n\nIsi awal.\n');
+			assert.deepEqual(pf.kunciSaatSunting, ['s1']);
+			const kunci = ke('POST', '/api/me/group-docs/gd-uji/sections/s1/lock');
+			assert.ok(kunci.length >= 1 && kunci.every((p) => p.otorisasi === `Bearer ${TOKEN}`));
+		});
+		periksa('Portofolio kelompok: Simpan mengirim isi dengan kunci tetap dipegang; tab ditutup melepas kunci', () => {
+			assert.equal(pf.tersimpan, true);
+			const simpan = ke('PUT', '/api/me/group-docs/gd-uji/sections/s1');
+			assert.equal(simpan.length, 1);
+			assert.equal(simpan[0].badan.body, '## 1. Kebutuhan\n\nIsi awal.\nTambahan dari aplikasi.\n');
+			assert.equal(simpan[0].badan.keepLock, true);
+			assert.equal(ke('POST', '/api/me/group-docs/gd-uji/sections/s1/unlock').length, 1);
+			assert.equal(dok.bagian[0].lock, null);
+		});
+		periksa('Portofolio kelompok: bagian yang dikunci teman terbuka baca saja (tidak pernah "belum disimpan"), tanpa PUT', () => {
+			assert.equal(pf.kedua, 'sunting');
+			assert.equal(ke('POST', '/api/me/group-docs/gd-uji/sections/s2/lock').length, 1);
+			assert.equal(ke('PUT', '/api/me/group-docs/gd-uji/sections/s2').length, 0);
+			assert.equal(pf.lihat.isi, '## 2. Dimensi\n\nDitulis Citra.\n');
+			assert.equal(pf.lihat.kotor, false);
+			assert.equal(pf.lihat.bahasa, 'markdown');
+			assert.deepEqual(pf.ditolak, ['ditolak', 'ditolak', 'ditolak']);
+		});
+	} else {
+		dilewati.push('Portofolio kelompok: ekstensi yang diuji belum punya kait uji (versi lama)');
+	}
 	periksa('suara panel: bawaan nyala 0,35 (seperti web); <audio> lokal + media-src lokal saja di keempat panel; Bravais berpikir berbunyi; pengaturan berlaku tanpa memuat ulang', () => {
 		const s = h.suara;
 		assert.deepEqual(s.awal, { aktif: true, volume: 0.35 });
@@ -1289,7 +1375,9 @@ try {
 			assert.ok(a.bagian['b-layanan'].includes('<code>localhost:5433</code>') && a.bagian['b-layanan'].includes('data-tindakan="nyalakan"'));
 			assert.ok(a.bagian['b-dataset'].includes('Belum disiapkan') && a.bagian['b-dataset'].includes('0/9 berkas'));
 			assert.ok(a.bagian['b-kerja'].includes('data-tindakan="buka-berkas" data-indeks="0"') && a.bagian['b-kerja'].includes('modul-02/02_muat.sql — belum ada di folder kerja'));
-			assert.ok(a.bagian['b-web'].includes('Studi Kasus, portofolio kelompok, dan salinan data Kelas'));
+			// Editor SQL web pensiun (ADR-080): hanya halaman web yang masih ada; modul biasa tanpa bagian Studi Kasus.
+			assert.ok(a.bagian['b-web'].includes('Riwayat checkpoint') && !a.bagian['b-web'].includes('belum tersedia'));
+			assert.equal(a.bagian['b-kasus'], '');
 		});
 		periksa('panel: "Nyalakan" lewat relay (service.start); katalog lewat pipa agent dengan amplop ber-services; diagram ER memuat tabel dan relasi dari kunci asing; nama kolom ber-HTML tetap teks', () => {
 			assert.equal(g.nyalakan, 'berhasil');

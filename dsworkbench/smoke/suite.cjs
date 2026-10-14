@@ -570,6 +570,30 @@ async function run() {
       const k = bk.keadaan();
       hasil["berkasSaya"] = { awal: awal2, simpan, setelah, imporNama, imporLagi, imporJebakan, imporZip, ditolak, panel: { terpasang: k.terpasang, html: k.html } };
     }
+    if (api.uji.portofolio) {
+      const pf = api.uji.portofolio;
+      await pf.buka({ courseId: "pergudangan-data", moduleId: "pgd-kasus", judul: "Studi Kasus \xB7 Gudang Uji", namaMataKuliah: "Pergudangan Data" });
+      await sampai(() => pf.keadaan().keadaan?.doc?.sections.length === 2, 15e3, "portofolio tidak termuat");
+      const sunting = await pf.pesan({ tindakan: "sunting", indeks: 0 });
+      await sampai(() => vscode.window.activeTextEditor?.document.uri.scheme === "dsw-portofolio", 15e3, "bagian tidak terbuka di editor");
+      const ed = vscode.window.activeTextEditor;
+      const uri3 = ed.document.uri.toString();
+      const izin = (await vscode.workspace.fs.stat(ed.document.uri)).permissions ?? 0;
+      const isiAwal = ed.document.getText();
+      const bahasa = ed.document.languageId;
+      await ed.edit((b) => b.insert(ed.document.positionAt(ed.document.getText().length), "Tambahan dari aplikasi.\n"));
+      const tersimpan = await ed.document.save();
+      const kunciSaatSunting = [...pf.keadaan().kunciSaya];
+      const kedua2 = await pf.pesan({ tindakan: "sunting", indeks: 1 });
+      await sampai(() => vscode.window.activeTextEditor?.document.uri.scheme === "dsw-portofolio-lihat", 15e3, "bagian yang dikunci teman tidak terbuka baca saja");
+      const dl = vscode.window.activeTextEditor.document;
+      const lihat = { isi: dl.getText(), kotor: dl.isDirty, bahasa: dl.languageId };
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      await sampai(() => pf.keadaan().kunciSaya.length === 0, 15e3, "kunci tidak dilepas saat tab ditutup");
+      await tidur(500);
+      const ditolak = [await pf.pesan({ tindakan: "sunting", indeks: 9 }), await pf.pesan({ tindakan: "mulai", teks: "x" }), await pf.pesan({ tindakan: "jalankan" })];
+      hasil["portofolio"] = { sunting, uri: uri3, izin, isiAwal, bahasa, tersimpan, kunciSaatSunting, kedua: kedua2, lihat, ditolak, galat: pf.keadaan().galat ?? null };
+    }
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
     await tidur(1500);
     hasil["statusAkhir"] = api.uji.statusAgent();

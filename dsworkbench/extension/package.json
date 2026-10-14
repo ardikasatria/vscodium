@@ -3,7 +3,7 @@
   "displayName": "DSWorkbench",
   "icon": "media/ikon.png",
   "description": "Kelas, naskah modul, notebook, tugas, checkpoint, SQL, Studio Data, DSWorkbench Viz, terminal praktikum, asisten belajar Bravais, alat bantu menulis LaTeX, dan Berkas saya untuk Sains Data ITERA, dijalankan di komputer Anda lewat Local Runner.",
-  "version": "0.4.5",
+  "version": "0.5.0",
   "publisher": "sditera",
   "private": true,
   "license": "UNLICENSED",
@@ -549,6 +549,12 @@
         "title": "Berkas saya — Buka di web",
         "category": "DSWorkbench",
         "icon": "$(link-external)"
+      },
+      {
+        "command": "dsworkbench.portofolio.buka",
+        "title": "Portofolio kelompok (studi kasus)",
+        "category": "DSWorkbench",
+        "icon": "$(organization)"
       }
     ],
     "viewsContainers": {
@@ -612,6 +618,14 @@
         {
           "id": "dsworkbench.berkas",
           "name": "Berkas saya",
+          "type": "webview",
+          "icon": "media/dsworkbench.svg",
+          "contextualTitle": "DSWorkbench",
+          "visibility": "collapsed"
+        },
+        {
+          "id": "dsworkbench.portofolio",
+          "name": "Portofolio kelompok",
           "type": "webview",
           "icon": "media/dsworkbench.svg",
           "contextualTitle": "DSWorkbench",
@@ -1095,6 +1109,11 @@
           "command": "dsworkbench.auth.explainStorage",
           "when": "view == dsworkbench.status && viewItem == akunTakTersimpan",
           "group": "inline@1"
+        },
+        {
+          "command": "dsworkbench.portofolio.buka",
+          "when": "view == dsworkbench.kelas && viewItem == kasus",
+          "group": "inline"
         }
       ],
       "notebook/toolbar": [
