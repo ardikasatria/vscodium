@@ -1,16 +1,20 @@
-## DSWorkbench 0.1.0 — uji 3 (pra-rilis)
+## DSWorkbench 0.1.0 — uji 4 (pra-rilis)
 
 Aplikasi DSWorkbench yang baru: satu aplikasi untuk notebook, SQL, terminal, dan Git, dengan Local Runner di dalamnya. Masuk dengan akun Workbench, tanpa kode pairing.
 
 **Ini pra-rilis untuk uji terbatas.** Workbench di peramban tetap bisa dipakai. Tutup aplikasi "Data Science Workbench" yang lama sebelum membuka yang ini: aplikasi baru memakai lingkungan Python yang sama.
 
-### Yang baru sejak uji 2
+### Yang baru sejak uji 3
 
-- **Mode lab** untuk komputer yang dipakai bergantian dengan satu akun komputer: masuk tidak disimpan, keluar otomatis saat aplikasi ditutup atau ditinggal, jejak dibersihkan. Diaktifkan pengelola lab per komputer. Belum pernah dicoba di Windows.
-- **Ganti avatar** langsung dari panel Sosial; perbaikan avatar yang tampil sebagai inisial.
-- **Ikon berkas** Material Icon Theme menjadi bawaan (bisa diganti di pengaturan).
-- Linux: arsip **`.tar.gz`** untuk distro selain Debian/Ubuntu, menggantikan AppImage.
-- Ekstensi DSWorkbench 0.1.1.
+Semua lewat ekstensi DSWorkbench (0.1.1 → **0.4.5**):
+
+- **DSWorkbench Viz**: bagan ber-rak dan dasbor di atas Vega-Lite dengan tata letak bebas; mode mandiri bermesin DuckDB (pilih folder, hubungkan beberapa berkas, JOIN dengan beberapa kolom kunci).
+- **Studio Data** dan **Pergudangan Data**: panel baru, Modul 07–10, skrip CREATE lengkap dengan pewarnaan sintaks.
+- **Folder kerja per mata kuliah**; pekerjaan lama dipindahkan otomatis oleh Local Runner bawaan (0.4.11).
+- **Soal analisis tugas** dijawab langsung di aplikasi.
+- **Menulis LaTeX** dan **Berkas saya**.
+- Konteks naskah modul untuk **Bravais**; sesi antarjendela dan pembaruan segera.
+- Perbaikan avatar, gerak avatar emoji, suara panel, pencabutan perangkat lama, versi di Status.
 
 ### Unduh
 
