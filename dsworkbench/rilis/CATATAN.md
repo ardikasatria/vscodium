@@ -1,20 +1,18 @@
-## DSWorkbench 0.1.0 — uji 4 (pra-rilis)
+## DSWorkbench 0.1.0 — uji 5 (pra-rilis)
 
 Aplikasi DSWorkbench yang baru: satu aplikasi untuk notebook, SQL, terminal, dan Git, dengan Local Runner di dalamnya. Masuk dengan akun Workbench, tanpa kode pairing.
 
 **Ini pra-rilis untuk uji terbatas.** Workbench di peramban tetap bisa dipakai. Tutup aplikasi "Data Science Workbench" yang lama sebelum membuka yang ini: aplikasi baru memakai lingkungan Python yang sama.
 
-### Yang baru sejak uji 3
+### Yang baru sejak uji 4
 
-Semua lewat ekstensi DSWorkbench (0.1.1 → **0.4.5**):
+Ekstensi DSWorkbench **0.5.0**:
 
-- **DSWorkbench Viz**: bagan ber-rak dan dasbor di atas Vega-Lite dengan tata letak bebas; mode mandiri bermesin DuckDB (pilih folder, hubungkan beberapa berkas, JOIN dengan beberapa kolom kunci).
-- **Studio Data** dan **Pergudangan Data**: panel baru, Modul 07–10, skrip CREATE lengkap dengan pewarnaan sintaks.
-- **Folder kerja per mata kuliah**; pekerjaan lama dipindahkan otomatis oleh Local Runner bawaan (0.4.11).
-- **Soal analisis tugas** dijawab langsung di aplikasi.
-- **Menulis LaTeX** dan **Berkas saya**.
-- Konteks naskah modul untuk **Bravais**; sesi antarjendela dan pembaruan segera.
-- Perbaikan avatar, gerak avatar emoji, suara panel, pencabutan perangkat lama, versi di Status.
+- **Studi Kasus** tampil terpisah dari modul bernomor: di panel Pergudangan Data ("Studi Kasus · …") dan di Kelas saya (ikon koper). Bagian Studi Kasus berisi naskah kasus, keterangan salinan data Kelas, dan portofolio kelompok. Tidak ada lagi tautan ke editor SQL web yang sudah pensiun.
+- **Portofolio kelompok** di aplikasi: naskah Markdown bersama, paling banyak 5 orang per kelompok. Sunting membuka bagian sebagai berkas di editor dan menguncinya untuk Anda; simpan (Ctrl/Cmd+S) mengirimnya ke Workbench; menutup tab melepas kunci. Bagian yang sedang disunting teman terbuka baca saja, dan perubahan teman masuk tiap beberapa detik. Undang teman, komentar singkat, riwayat bagian, dan simpan `portofolio.md` ke folder kerja.
+- Pemilih avatar Sosial memuat 14 avatar hewan yang sudah ada di web.
+
+Portofolio kelompok dan Studi Kasus membutuhkan server Workbench terbaru.
 
 ### Unduh
 
