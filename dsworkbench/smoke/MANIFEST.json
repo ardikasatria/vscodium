@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "dibuat": "2026-10-14T17:03:34Z",
-  "commit": "6050a0676ab3",
-  "adaPerubahanLokal": false,
+  "dibuat": "2026-10-23T12:20:48Z",
+  "commit": "ef45ea225814",
+  "adaPerubahanLokal": true,
   "ekstensi": {
     "id": "sditera.dsworkbench",
-    "versi": "0.5.0",
-    "sha256": "9cf22d3738a8325256e5fb491968dcf5c2b30119e9c84af8f06cc6cf4d3035c1"
+    "versi": "0.6.3",
+    "sha256": "e8e379518ae5e9ef3c9473abc945f20b6408355c89af98daa84e4985aa024b91"
   },
   "berkas": [
     {
@@ -27,7 +27,7 @@
     },
     {
       "jalur": "lab.mjs",
-      "sha256": "af6363cf2d6427bfc8c900f6fce4c01b413ed1b7fd34e62d7aee90b5ff30e3bf"
+      "sha256": "13c7d5b7775eb6c043b4f69e5d9995ce9b2b0d40dadf5943020a3e35bc1f80bb"
     },
     {
       "jalur": "lib/zip.mjs",

@@ -1,6 +1,6 @@
 # DSWorkbench
 
-**Versi 0.5.0** · Local Runner 0.4.11
+**Versi 0.6.3** · Local Runner 0.4.13
 
 Kelas, naskah modul, notebook, tugas, checkpoint, SQL, terminal praktikum, asisten belajar
 Bravais, teman sekelas, alat bantu menulis LaTeX, dan Berkas saya — untuk Sains Data ITERA. Semua dijalankan di komputer Anda

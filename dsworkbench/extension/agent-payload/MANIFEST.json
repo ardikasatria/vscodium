@@ -1,11 +1,11 @@
 {
 	"schema": 1,
-	"agentVersion": "0.4.11",
-	"commit": "6050a0676ab377cdf185c9ac8935c49127d5ee51",
+	"agentVersion": "0.4.13",
+	"commit": "ef45ea225814fa1305114308cc0fb57b05a623f6",
 	"dirty": false,
 	"source": "agent/local-runner + packages/{jupyter,checkpoint,workspace,datasets} (daftar: agent_package.build_zip)",
 	"fileCount": 190,
-	"totalBytes": 4625801,
+	"totalBytes": 4627676,
 	"files": [
 		{
 			"path": "assets/workbench-agent.icns",
@@ -54,8 +54,8 @@
 		},
 		{
 			"path": "requirements/services.json",
-			"size": 1878,
-			"sha256": "4ca934f2c84f6b0eea693a7cb1bd57d61d75c03dd24d19d6da8c2e227a403458"
+			"size": 1963,
+			"sha256": "a465a11a439d1b7e3eb8a1ff5f91e564536ffc2b04afab5a15ca49c96b5d34c7"
 		},
 		{
 			"path": "src/workbench_agent/__init__.py",
@@ -90,7 +90,7 @@
 		{
 			"path": "src/workbench_agent/config.py",
 			"size": 2776,
-			"sha256": "b569295c8891eebe4e8a373609990c348e7e9dc51c193efd3c0387bc819be525"
+			"sha256": "110c05df5c5793c4e7d8ba2b92b2e846a01bfd6405c53290532e28ba33591368"
 		},
 		{
 			"path": "src/workbench_agent/datasets_op.py",
@@ -344,8 +344,8 @@
 		},
 		{
 			"path": "src/workbench_jupyter/worker.py",
-			"size": 4990,
-			"sha256": "d21c7abab7c3df4f1122b4635ce6f0c16093e1ddb9708f07b60cc3974dbefc77"
+			"size": 6780,
+			"sha256": "52971392caa368cb0470511f6515d600ad50d3276e02785cd4196bdc959235ce"
 		},
 		{
 			"path": "src/workbench_jupyter/ws.py",

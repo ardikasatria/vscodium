@@ -52,6 +52,13 @@ for (const j of [path.join(akarMuat, 'dist', 'extension.js'), path.join(akarMuat
 
 // Jalur pendek: soket IPC VS Code dan pipa penjaga dibatasi ±103 karakter.
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dswl-'));
+// Home tiruan berisi kredensial AWS mahasiswa sebelumnya (praktikum Komputasi Awan).
+const homeLab = path.join(tmp, 'home-lab');
+const awsLab = path.join(homeLab, '.aws');
+fs.mkdirSync(path.join(awsLab, 'login', 'cache'), { recursive: true });
+fs.writeFileSync(path.join(awsLab, 'login', 'cache', 'sesi.json'), '{"accessToken": "rahasia"}');
+fs.writeFileSync(path.join(awsLab, 'credentials'), '[default]\naws_access_key_id = AKIATIRUAN\n');
+fs.writeFileSync(path.join(awsLab, 'config'), '[default]\nregion = ap-southeast-2\n');
 const dir = (n) => {
 	const d = path.join(tmp, n);
 	fs.mkdirSync(d, { recursive: true });
@@ -65,6 +72,10 @@ const pemicu = dir('p');
 const wsCourse = path.join(ws, COURSE);
 fs.mkdirSync(wsCourse);
 fs.writeFileSync(path.join(wsCourse, 'catatan-lab.txt'), 'isi awal\n');
+// Identitas `koma` mahasiswa sebelumnya: token verifier harus dibuang saat keluar, NIM tetap.
+const identitasKoma = path.join(wsCourse, 'koma-infra', '.koma', 'identitas.json');
+fs.mkdirSync(path.dirname(identitasKoma), { recursive: true });
+fs.writeFileSync(identitasKoma, JSON.stringify({ nim: '121450001', kelompok: 'k03', token: 'f'.repeat(24) }));
 const folderRuntime = path.join(tmp, 'r', 'DSWorkbench');
 const catatanAgent = path.join(tmp, 'agent.json');
 const catatanPenjaga = path.join(tmp, 'penjaga.jsonl');
@@ -300,6 +311,10 @@ async function tahap(nama, { lab, folder, bunuhSetelahHasil = false, biasa = fal
 	const env = { ...process.env, DSW_DATA_ROOT: folderRuntime, DSW_OUT: out, DSW_SERVER: SERVER, DSW_USERNAME: USERNAME, DSW_WS_COURSE: wsCourse, DSW_LAB_TAHAP: nama, DSW_LAB_CATATAN_PENJAGA: catatanPenjaga, DSW_LAB_AKSI: aksi, DSW_LAB_ISYARAT: isyarat };
 	if (lab) env.DSW_LAB_CONFIG = konfigLab;
 	else delete env.DSW_LAB_CONFIG;
+	// Sapu kredensial cloud bekerja di home sementara, bukan ~/.aws milik pengembang.
+	env.DSW_LAB_HOME = homeLab;
+	delete env.AWS_CONFIG_FILE;
+	delete env.AWS_SHARED_CREDENTIALS_FILE;
 	const mulai = Date.now();
 	const keluar = await new Promise((selesai) => {
 		const anak = spawn(KODE, argumen, { stdio: ['ignore', 'pipe', 'pipe'], env });
@@ -568,7 +583,9 @@ try {
 	});
 	periksa('keluar karena menganggur: tautan GitHub dicabut lewat relay, token + perangkat dicabut di server, Local Runner berhenti, device.json dihapus', () => {
 		const lap = Object.fromEntries(m.menganggur.keadaan.laporanKeluar.map((l) => [l.nama, l.hasil]));
-		assert.deepEqual(lap, { simpan: 'ok', github: 'ok', server: 'ok', penjaga: 'ok', agent: 'ok', sesi: 'ok', sapu: 'ok', jejak: 'ok', editor: 'ok', folder: 'ok' }, JSON.stringify(m.menganggur.keadaan.laporanKeluar));
+		assert.deepEqual(lap, { simpan: 'ok', github: 'ok', server: 'ok', penjaga: 'ok', agent: 'ok', sesi: 'ok', sapu: 'ok', cloud: 'ok', jejak: 'ok', editor: 'ok', folder: 'ok' }, JSON.stringify(m.menganggur.keadaan.laporanKeluar));
+		for (const sisa of ['login/cache', 'credentials', 'config']) assert.equal(fs.existsSync(path.join(awsLab, sisa)), false, `~/.aws/${sisa} masih ada`);
+		assert.deepEqual(JSON.parse(fs.readFileSync(identitasKoma, 'utf8')), { nim: '121450001', kelompok: 'k03' }, 'token verifier koma dibuang, NIM tetap');
 		const urut = permintaan.map((p) => `${p.metode} ${p.jalur}`);
 		const kirim = permintaan.slice(nMasuk).filter((p) => p.jalur === '/api/relay/dispatch');
 		assert.deepEqual(kirim.map((p) => [p.badan.operation, p.badan.deviceId, p.otorisasi]), [['github.auth_revoke', t1.deviceId, `Bearer ${t1.token}`]]);

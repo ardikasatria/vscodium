@@ -2,8 +2,8 @@
   "name": "dsworkbench",
   "displayName": "DSWorkbench",
   "icon": "media/ikon.png",
-  "description": "Kelas, naskah modul, notebook, tugas, checkpoint, SQL, Studio Data, DSWorkbench Viz, terminal praktikum, asisten belajar Bravais, alat bantu menulis LaTeX, dan Berkas saya untuk Sains Data ITERA, dijalankan di komputer Anda lewat Local Runner.",
-  "version": "0.5.0",
+  "description": "Kelas, naskah modul, notebook, tugas, checkpoint, SQL, Studio Data, DSWorkbench Viz, terminal praktikum, asisten belajar Bravais, alat bantu menulis LaTeX, Editor Laporan Markdown (ekspor PDF/Word), dan Berkas saya untuk Sains Data ITERA, dijalankan di komputer Anda lewat Local Runner.",
+  "version": "0.6.3",
   "publisher": "sditera",
   "private": true,
   "license": "UNLICENSED",
@@ -133,6 +133,17 @@
           "default": "selalu",
           "scope": "window",
           "markdownDescription": "Gerak avatar di panel Sosial (emoji yang bergoyang dan ilustrasi beranimasi). Bawaannya `selalu`: avatar tetap bergerak walau sistem operasi meminta \"kurangi gerak\", karena di banyak komputer lab dan sesi Remote Desktop permintaan itu menyala dengan sendirinya. **Bila gerak mengganggu Anda** (pusing, sulit berkonsentrasi, atau komputer terasa berat), pilih `mati` untuk menghentikan semua gerak avatar, atau `ikutiSistem` agar mengikuti pengaturan aksesibilitas sistem operasi. Perubahan berlaku seketika. Gerak lain di panel tetap mengikuti sistem operasi, dan panel yang tersembunyi tidak pernah beranimasi."
+        },
+        "dsworkbench.laporan.peramban": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "markdownDescription": "Jalur Chrome, Edge, atau Chromium untuk ekspor PDF Editor Laporan. Kosong = cari otomatis di letak baku (Windows: Edge lalu Chrome). Tanpa peramban itu, ekspor PDF membuka dialog cetak peramban bawaan."
+        },
+        "dsworkbench.laporan.lewatiChecklistPdf": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Saat ekspor PDF, lewati bagian **Checklist Sebelum Mengumpulkan** (templat Deep Learning menyebutnya tidak perlu tercetak)."
         }
       }
     },
@@ -555,6 +566,48 @@
         "title": "Portofolio kelompok (studi kasus)",
         "category": "DSWorkbench",
         "icon": "$(organization)"
+      },
+      {
+        "command": "dsworkbench.laporan.buka",
+        "title": "Buka di Editor Laporan",
+        "category": "DSWorkbench",
+        "icon": "$(notebook-render-output)"
+      },
+      {
+        "command": "dsworkbench.laporan.bukaTeks",
+        "title": "Buka sebagai teks Markdown",
+        "category": "DSWorkbench",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "dsworkbench.laporan.ekspor",
+        "title": "Ekspor laporan…",
+        "category": "DSWorkbench",
+        "icon": "$(export)"
+      },
+      {
+        "command": "dsworkbench.laporan.eksporPdf",
+        "title": "Ekspor laporan ke PDF",
+        "category": "DSWorkbench",
+        "icon": "$(file-pdf)"
+      },
+      {
+        "command": "dsworkbench.laporan.eksporWord",
+        "title": "Ekspor laporan ke Word (.docx)",
+        "category": "DSWorkbench",
+        "icon": "$(file)"
+      },
+      {
+        "command": "dsworkbench.laporan.eksporHtml",
+        "title": "Ekspor laporan ke HTML",
+        "category": "DSWorkbench",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "dsworkbench.laporan.isiIdentitas",
+        "title": "Isi identitas laporan dari akun",
+        "category": "DSWorkbench",
+        "icon": "$(account)"
       }
     ],
     "viewsContainers": {
@@ -830,6 +883,34 @@
         {
           "command": "dsworkbench.files.openWeb",
           "when": "dsworkbench.masuk"
+        },
+        {
+          "command": "dsworkbench.laporan.buka",
+          "when": "resourceLangId == markdown"
+        },
+        {
+          "command": "dsworkbench.laporan.bukaTeks",
+          "when": "activeCustomEditorId == dsworkbench.editorLaporan"
+        },
+        {
+          "command": "dsworkbench.laporan.ekspor",
+          "when": "resourceExtname == .md"
+        },
+        {
+          "command": "dsworkbench.laporan.eksporPdf",
+          "when": "resourceExtname == .md"
+        },
+        {
+          "command": "dsworkbench.laporan.eksporWord",
+          "when": "resourceExtname == .md"
+        },
+        {
+          "command": "dsworkbench.laporan.eksporHtml",
+          "when": "resourceExtname == .md"
+        },
+        {
+          "command": "dsworkbench.laporan.isiIdentitas",
+          "when": "resourceExtname == .md && dsworkbench.masuk"
         }
       ],
       "view/title": [
@@ -1143,6 +1224,26 @@
           "command": "dsworkbench.writing.preview",
           "when": "resourceExtname == .tex",
           "group": "navigation@2"
+        },
+        {
+          "command": "dsworkbench.laporan.buka",
+          "when": "resourceLangId == markdown && activeCustomEditorId != dsworkbench.editorLaporan",
+          "group": "navigation@5"
+        },
+        {
+          "command": "dsworkbench.laporan.bukaTeks",
+          "when": "activeCustomEditorId == dsworkbench.editorLaporan",
+          "group": "navigation@5"
+        },
+        {
+          "command": "dsworkbench.laporan.isiIdentitas",
+          "when": "activeCustomEditorId == dsworkbench.editorLaporan && dsworkbench.masuk",
+          "group": "navigation@6"
+        },
+        {
+          "command": "dsworkbench.laporan.ekspor",
+          "when": "activeCustomEditorId == dsworkbench.editorLaporan",
+          "group": "navigation@7"
         }
       ],
       "editor/context": [
@@ -1265,6 +1366,30 @@
         "command": "dsworkbench.studio.planActual",
         "key": "ctrl+m",
         "when": "activeWebviewPanelId == 'dsworkbench.studio'"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "dsworkbench.editorLaporan",
+        "displayName": "Editor Laporan DSWorkbench",
+        "selector": [
+          {
+            "filenamePattern": "**/template-*.md"
+          },
+          {
+            "filenamePattern": "**/laporan*.md"
+          },
+          {
+            "filenamePattern": "**/M[0-9][0-9]_*.md"
+          },
+          {
+            "filenamePattern": "**/portofolio.md"
+          },
+          {
+            "filenamePattern": "**/dokumen-desain*.md"
+          }
+        ],
+        "priority": "default"
       }
     ]
   }

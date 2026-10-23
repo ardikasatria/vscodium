@@ -25,8 +25,9 @@ pustaka C -- yang menulis langsung ke fd 1 dan tidak tertangkap
 
 Interrupt: POSIX = SIGINT dari induk. Windows = ``CTRL_BREAK_EVENT`` ke grup
 proses kernel (induk membuatnya dengan ``CREATE_NEW_PROCESS_GROUP``); handler
-``SIGBREAK`` di sini mengubahnya menjadi ``KeyboardInterrupt`` di utas utama,
-tempat sel berjalan -- sama seperti Ctrl+C (ADR-049 §3).
+konsol di sini meneruskannya sebagai SIGINT sehingga ``KeyboardInterrupt``
+naik di utas utama, tempat sel berjalan, dan ``time.sleep`` ikut terbangun --
+sama seperti Ctrl+C (ADR-049 §3).
 
 Modul ini hanya memakai pustaka standar dan paket ``workbench_jupyter``.
 """
@@ -58,6 +59,11 @@ def _kirim(kanal: TextIO, pesan: dict[str, Any]) -> None:
     kanal.flush()
 
 
+#: Callback ctypes harus tetap hidup selama proses: bila dibuang GC, Windows
+#: akan memanggil memori yang sudah dibebaskan.
+_PENANGAN_KONSOL: Any = None
+
+
 def _pasang_interrupt_windows() -> None:
     sigbreak = getattr(signal, "SIGBREAK", None)
     if sigbreak is None:
@@ -67,6 +73,43 @@ def _pasang_interrupt_windows() -> None:
         raise KeyboardInterrupt
 
     signal.signal(sigbreak, _ke_keyboard_interrupt)
+    _pasang_penangan_konsol()
+
+
+def _pasang_penangan_konsol() -> None:  # pragma: no cover - hanya Windows
+    """``CTRL_BREAK_EVENT`` → ``raise(SIGINT)`` di tingkat C.
+
+    Handler SIGBREAK Python di atas baru berjalan di antara bytecode, dan
+    CPython di Windows hanya membangunkan ``time.sleep`` (serta tunggu lain di
+    utas utama) untuk SIGINT. Tanpa ini sel yang sedang ``time.sleep`` tidak
+    berhenti, tenggang induk habis, dan kernel dimulai ulang -- Hentikan
+    terlihat sebagai galat ``KernelRestarted``. Windows memanggil handler
+    konsol ini di utas baru; ``signal.raise_signal(SIGINT)`` menjalankan
+    handler C CPython untuk SIGINT, yang menyalakan event bangun utas utama
+    lalu menjadwalkan ``KeyboardInterrupt`` -- sama seperti Ctrl+C di konsol.
+    """
+    global _PENANGAN_KONSOL
+    try:
+        import ctypes
+        from ctypes import wintypes
+    except ImportError:
+        return
+    ctrl_break_event = 1
+
+    def _penangan(jenis: int) -> bool:
+        # Sel yang mengabaikan SIGINT (SIG_IGN/SIG_DFL): serahkan ke handler
+        # SIGBREAK seperti sebelumnya, jangan sampai raise(SIGINT) mematikan proses.
+        if jenis != ctrl_break_event or not callable(signal.getsignal(signal.SIGINT)):
+            return False
+        try:
+            signal.raise_signal(signal.SIGINT)
+        except (OSError, ValueError):
+            return False
+        return True
+
+    penangan = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.DWORD)(_penangan)
+    if ctypes.windll.kernel32.SetConsoleCtrlHandler(penangan, True):
+        _PENANGAN_KONSOL = penangan
 
 
 def _dihentikan(hitungan: int | None) -> ExecutionResult:
